@@ -1,0 +1,33 @@
+# Configuración de despliegue en Netlify.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# MyOS es una SPA: el servidor no conoce /objetivos ni /gimnasio. Sin esto,
+# recargar en cualquier ruta que no sea la raíz devolvería un 404.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# El service worker y el manifiesto no deben cachearse: si no, el navegador
+# seguiría sirviendo la versión vieja de la app tras cada despliegue.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Los assets llevan hash en el nombre: se pueden cachear para siempre.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

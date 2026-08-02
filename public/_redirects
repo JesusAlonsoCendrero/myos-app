@@ -1,0 +1,6 @@
+# MyOS es una SPA: el servidor no conoce /objetivos ni /gimnasio.
+# Sin esto, recargar en cualquier ruta que no sea la raíz daría 404.
+#
+# Va aquí (y no solo en netlify.toml) porque al desplegar la carpeta dist a mano
+# el netlify.toml de la raíz del repositorio no viaja con ella.
+/*    /index.html   200

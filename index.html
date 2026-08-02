@@ -1,0 +1,36 @@
+﻿<!doctype html>
+<html lang="es" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c1017" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MyOS" />
+    <meta
+      name="description"
+      content="Tu sistema operativo personal: objetivos, tareas, gimnasio, proyectos, viajes y KPIs."
+    />
+    <title>MyOS</title>
+    <script>
+      // Evita el parpadeo de tema: aplica la preferencia antes del primer pintado.
+      (function () {
+        try {
+          var t = localStorage.getItem('myos:theme')
+          var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches
+          document.documentElement.classList.toggle('dark', dark)
+          document
+            .querySelector('meta[name="theme-color"]')
+            .setAttribute('content', dark ? '#0c1017' : '#f6f8fc')
+        } catch (e) {}
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
