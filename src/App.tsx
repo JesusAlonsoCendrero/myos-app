@@ -3,10 +3,11 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import AppShell from '@/components/AppShell'
 import { Spinner } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
-import { isConfigured } from '@/lib/supabase'
+import { autoLogin, isConfigured } from '@/lib/supabase'
 
 import Setup from '@/pages/Setup'
 import Login from '@/pages/Login'
+import Conectando from '@/pages/Conectando'
 import Dashboard from '@/pages/Dashboard'
 import Objetivos from '@/pages/Objetivos'
 import Proyectos from '@/pages/Proyectos'
@@ -21,21 +22,23 @@ const Kpis = lazy(() => import('@/pages/Kpis'))
 export default function App() {
   const { session, loading } = useAuth()
 
-
-  // Sin .env no hay nada que hacer: enseñamos las instrucciones.
+  // Sin configuración de Supabase no hay nada que hacer: enseñamos las instrucciones.
   if (!isConfigured) return <Setup />
 
-  if (loading) {
-    return (
-      <div className="relative z-10 grid min-h-dvh place-items-center">
-        <Spinner label="Abriendo tu brújula…" />
-      </div>
-    )
+  if (!session) {
+    // Con entrada automática la app nunca pide credenciales: mientras conecta (o
+    // si la base de datos está despertando) se ve la pantalla de conexión.
+    if (autoLogin) return <Conectando />
+    // Sin credenciales configuradas sí hace falta el formulario.
+    if (loading) {
+      return (
+        <div className="relative z-10 grid min-h-dvh place-items-center">
+          <Spinner label="Abriendo MyOS…" />
+        </div>
+      )
+    }
+    return <Login />
   }
-
-  // Si la entrada automática funciona, esto no se ve nunca. Solo aparece cuando
-  // falla, y entonces lo útil es poder entrar a mano y ver el motivo.
-  if (!session) return <Login />
 
   return (
     <Routes>
