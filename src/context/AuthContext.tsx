@@ -4,7 +4,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -42,22 +41,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [intento, setIntento] = useState(0)
 
-  // StrictMode monta dos veces en desarrollo: sin esto habría dos entradas.
-  const enCurso = useRef(false)
-
-  const retry = useCallback(() => {
-    enCurso.current = false
-    setIntento((n) => n + 1)
-  }, [])
+  const retry = useCallback(() => setIntento((n) => n + 1), [])
 
   useEffect(() => {
     if (!supabase) {
       setLoading(false)
       return
     }
-    if (enCurso.current) return
-    enCurso.current = true
 
+    // `alive` evita tocar el estado si el efecto ya se desmontó. No usamos ningún
+    // candado extra: en desarrollo React monta dos veces y un candado dejaría el
+    // segundo montaje (el bueno) sin hacer nada, colgando la app en "Abriendo…".
     let alive = true
     let timer: ReturnType<typeof setTimeout>
 
@@ -88,13 +82,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      setError(friendlyError(err))
+      const motivo = friendlyError(err)
+      setError(motivo)
       setLoading(false)
 
       // Los fallos de red suelen ser pasajeros (o la base de datos despertando):
       // reintentamos solos en vez de dejar al usuario mirando un error.
-      if (/conexión|conexion|red/i.test(friendlyError(err))) {
-        timer = setTimeout(() => alive && retry(), espera(intento))
+      if (/conexión|conexion|red/i.test(motivo)) {
+        timer = setTimeout(() => {
+          if (alive) setIntento((n) => n + 1)
+        }, espera(intento))
       }
     })()
 
@@ -107,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timer)
       sub.subscription.unsubscribe()
     }
-  }, [intento, retry])
+  }, [intento])
 
   const value = useMemo<AuthValue>(
     () => ({
