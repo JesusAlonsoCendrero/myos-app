@@ -12,6 +12,7 @@ import Dashboard from '@/pages/Dashboard'
 import Objetivos from '@/pages/Objetivos'
 import Proyectos from '@/pages/Proyectos'
 import Tareas from '@/pages/Tareas'
+import Sprints from '@/pages/Sprints'
 import Gimnasio from '@/pages/Gimnasio'
 import Viajes from '@/pages/Viajes'
 import Ajustes from '@/pages/Ajustes'
@@ -49,6 +50,9 @@ export default function App() {
         {/* Ruta antigua del banco, por si quedó guardada en algún sitio. */}
         <Route path="banco" element={<Navigate to="/proyectos" replace />} />
         <Route path="tareas" element={<Tareas />} />
+        <Route path="sprints" element={<Sprints />} />
+        {/* Gimnasio ya no sale en el menu, pero la ruta sigue viva por si
+            quieres volver a el escribiendo /gimnasio. */}
         <Route path="gimnasio" element={<Gimnasio />} />
         <Route path="viajes" element={<Viajes />} />
         <Route

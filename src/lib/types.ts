@@ -31,6 +31,41 @@ export interface WeeklyGoal {
   created_at: string
 }
 
+export type SprintStatus = 'planificado' | 'activo' | 'cerrado'
+
+/**
+ * Un bloque de tiempo con fecha de inicio y fin. Dentro metes tareas, proyectos
+ * e ideas para saber qué toca en ese periodo.
+ */
+export interface Sprint {
+  id: string
+  user_id: string
+  name: string
+  /** Qué quieres haber logrado al cerrarlo, en una frase. */
+  goal: string | null
+  start_date: string
+  end_date: string
+  status: SprintStatus
+  emoji: string
+  color: string | null
+  notes: string | null
+  sort_order: number
+  created_at: string
+  closed_at: string | null
+}
+
+export const SPRINT_STATUS_LABEL: Record<SprintStatus, string> = {
+  planificado: 'Planificado',
+  activo: 'Activo',
+  cerrado: 'Cerrado',
+}
+
+export const SPRINT_EMOJIS = ['🏁', '🚀', '⚡', '🎯', '🔥', '📦', '🛠️', '🧭'] as const
+
+/* -------------------------------------------------------------------------- */
+/*  Objetivos                                                                  */
+/* -------------------------------------------------------------------------- */
+
 export type IdeaStatus = 'idea' | 'en_curso' | 'hecha'
 
 /**
@@ -59,6 +94,8 @@ export interface Idea {
   image_url: string | null
   /** Canal o autor. */
   author: string | null
+  /** Sprint en el que se va a abordar, si lo hay. */
+  sprint_id: string | null
   sort_order: number
   created_at: string
   done_at: string | null
@@ -131,6 +168,8 @@ export interface Task {
   notes: string | null
   /** Cuelga de un objetivo de la semana… */
   goal_id: string | null
+  /** Y opcionalmente vive dentro de un sprint. */
+  sprint_id: string | null
   /** …o de un proyecto. Nunca de los dos a la vez. */
   project_id: string | null
   status: TaskStatus
@@ -294,6 +333,8 @@ export interface Project {
   target_date: string | null
   /** Si es hoy, el proyecto aparece fijado arriba en Mi día. */
   my_day_date: string | null
+  /** Sprint en el que se está trabajando, si lo hay. */
+  sprint_id: string | null
   created_at: string
   updated_at: string
 }

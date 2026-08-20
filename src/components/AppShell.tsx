@@ -3,7 +3,6 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { motion } from 'motion/react'
 import {
   ChartNoAxesCombined,
-  Dumbbell,
   Home,
   Lightbulb,
   ListChecks,
@@ -11,6 +10,7 @@ import {
   Moon,
   MoreHorizontal,
   Plane,
+  Rocket,
   Settings,
   Sun,
   Target,
@@ -32,14 +32,17 @@ const NAV: NavItem[] = [
   { to: '/objetivos', label: 'Objetivos', icon: Target },
   { to: '/proyectos', label: 'Proyectos', icon: Lightbulb },
   { to: '/tareas', label: 'Tareas', icon: ListChecks },
-  { to: '/gimnasio', label: 'Gimnasio', icon: Dumbbell },
+  { to: '/sprints', label: 'Sprints', icon: Rocket },
+  // Gimnasio retirado del menu. El apartado sigue existiendo en /gimnasio:
+  // descomenta esta linea para recuperarlo.
+  // { to: '/gimnasio', label: 'Gimnasio', icon: Dumbbell },
   { to: '/viajes', label: 'Viajes', icon: Plane },
   { to: '/kpis', label: 'KPIs', icon: ChartNoAxesCombined },
   { to: '/ajustes', label: 'Ajustes', icon: Settings },
 ]
 
 /** Los cuatro accesos fijos de la barra inferior; el resto va en "Más". */
-const MOBILE_PRIMARY = ['/', '/objetivos', '/tareas', '/gimnasio']
+const MOBILE_PRIMARY = ['/', '/objetivos', '/tareas', '/sprints']
 
 const SPRING = { type: 'spring', stiffness: 420, damping: 36 } as const
 
