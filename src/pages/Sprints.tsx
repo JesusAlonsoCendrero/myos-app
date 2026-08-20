@@ -1,23 +1,19 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import {
   CalendarRange,
-  Flag,
   FolderKanban,
   ListChecks,
   Pencil,
   Plus,
   Rocket,
-  Trash2,
-  X,
 } from 'lucide-react'
 import {
   Badge,
   Button,
   Card,
-  Checkbox,
   cx,
-  Drawer,
   EmptyState,
   ErrorNote,
   Field,
@@ -31,7 +27,6 @@ import {
   Select,
   Spinner,
   Textarea,
-  useConfirm,
   useToast,
 } from '@/components/ui'
 import AnimatedNumber from '@/components/AnimatedNumber'
@@ -39,10 +34,8 @@ import { useCollection } from '@/hooks/useCollection'
 import { friendlyError } from '@/lib/supabase'
 import { daysUntil, longDate, shortDate, toISODate } from '@/lib/dates'
 import {
-  PROJECT_STATUS_LABEL,
   SPRINT_EMOJIS,
   SPRINT_STATUS_LABEL,
-  TECH_COLOR,
   type Idea,
   type Project,
   type Sprint,
@@ -92,8 +85,8 @@ function tiempoTranscurrido(s: Sprint) {
 }
 
 export default function Sprints() {
+  const navegar = useNavigate()
   const toast = useToast()
-  const confirm = useConfirm()
 
   const [filtro, setFiltro] = useState<SprintStatus | 'todos'>('todos')
   const [open, setOpen] = useState(false)
@@ -101,7 +94,6 @@ export default function Sprints() {
   const [draft, setDraft] = useState(emptyDraft)
   const [guardando, setGuardando] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
-  const [detalle, setDetalle] = useState<Sprint | null>(null)
 
   const sprints = useCollection<Sprint>('sprints', {
     shape: (q) => q.order('start_date', { ascending: false }),
@@ -200,45 +192,6 @@ export default function Sprints() {
     }
   }
 
-  async function cambiarEstado(s: Sprint, status: SprintStatus) {
-    try {
-      // Solo puede haber un sprint activo: al activar uno, el anterior se cierra.
-      if (status === 'activo') {
-        const otro = sprints.rows.find((x) => x.status === 'activo' && x.id !== s.id)
-        if (otro) {
-          await sprints.update(otro.id, {
-            status: 'cerrado',
-            closed_at: new Date().toISOString(),
-          })
-        }
-      }
-      await sprints.update(s.id, {
-        status,
-        closed_at: status === 'cerrado' ? new Date().toISOString() : null,
-      })
-      setDetalle((d) => (d && d.id === s.id ? { ...d, status } : d))
-    } catch (e) {
-      toast.error(friendlyError(e))
-    }
-  }
-
-  async function borrar(s: Sprint) {
-    const ok = await confirm({
-      title: '¿Borrar el sprint?',
-      message: `Se eliminará “${s.name}”. Las tareas y proyectos que contenga no se borran: solo dejan de pertenecer a él.`,
-      confirmLabel: 'Borrar',
-      danger: true,
-    })
-    if (!ok) return
-    try {
-      await sprints.remove(s.id)
-      setDetalle(null)
-      toast.success('Sprint borrado')
-    } catch (e) {
-      toast.error(friendlyError(e))
-    }
-  }
-
   return (
     <div className="animate-rise">
       <SectionTitle
@@ -259,7 +212,7 @@ export default function Sprints() {
           sprint={activo}
           contenido={contenido.get(activo.id)}
           avance={avance(activo)}
-          onOpen={() => setDetalle(activo)}
+          onOpen={() => navegar(`/sprints/${activo.id}`)}
         />
       )}
 
@@ -322,7 +275,7 @@ export default function Sprints() {
                   <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-surface-2 text-xl">
                     {s.emoji}
                   </span>
-                  <button onClick={() => setDetalle(s)} className="min-w-0 flex-1 text-left">
+                  <button onClick={() => navegar(`/sprints/${s.id}`)} className="min-w-0 flex-1 text-left">
                     <p className="truncate font-display text-lg leading-snug font-bold">{s.name}</p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-ink-3">
                       <CalendarRange className="size-3.5 shrink-0" />
@@ -378,57 +331,6 @@ export default function Sprints() {
             )
           })}
         </ul>
-      )}
-
-      {/* --- Detalle ---------------------------------------------------------- */}
-      {detalle && (
-        <SprintDrawer
-          sprint={detalle}
-          contenido={contenido.get(detalle.id)}
-          avance={avance(detalle)}
-          todasTareas={tasks.rows}
-          todosProyectos={projects.rows}
-          onClose={() => setDetalle(null)}
-          onEstado={(st) => void cambiarEstado(detalle, st)}
-          onEditar={() => {
-            setDetalle(null)
-            abrirEdicion(detalle)
-          }}
-          onBorrar={() => void borrar(detalle)}
-          onAsignarTarea={(id, dentro) =>
-            void tasks
-              .update(id, { sprint_id: dentro ? detalle.id : null })
-              .catch((e) => toast.error(friendlyError(e)))
-          }
-          onAsignarProyecto={(id, dentro) =>
-            void projects
-              .update(id, { sprint_id: dentro ? detalle.id : null })
-              .catch((e) => toast.error(friendlyError(e)))
-          }
-          onMarcarTarea={(t) =>
-            void tasks
-              .update(t.id, {
-                status: t.status === 'done' ? 'todo' : 'done',
-                completed_at: t.status === 'done' ? null : new Date().toISOString(),
-              })
-              .catch((e) => toast.error(friendlyError(e)))
-          }
-          onCrearTarea={async (titulo) => {
-            try {
-              // Nace dentro del sprint y en el backlog: no ensucia Mi día hasta
-              // que decidas hacerla hoy.
-              const orden = tasks.rows.reduce((min, t) => Math.min(min, t.sort_order), 0) - 1
-              await tasks.insert({
-                title: titulo,
-                sprint_id: detalle.id,
-                is_backlog: true,
-                sort_order: orden,
-              })
-            } catch (e) {
-              toast.error(friendlyError(e))
-            }
-          }}
-        />
       )}
 
       {/* --- Alta / edición ---------------------------------------------------- */}
@@ -630,325 +532,5 @@ function SprintHero({
         </div>
       </div>
     </Card>
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Detalle del sprint                                                         */
-/* -------------------------------------------------------------------------- */
-
-function SprintDrawer({
-  sprint,
-  contenido,
-  avance,
-  todasTareas,
-  todosProyectos,
-  onClose,
-  onEstado,
-  onEditar,
-  onBorrar,
-  onAsignarTarea,
-  onAsignarProyecto,
-  onMarcarTarea,
-  onCrearTarea,
-}: {
-  sprint: Sprint
-  contenido?: Contenido
-  avance: number
-  todasTareas: Task[]
-  todosProyectos: Project[]
-  onClose: () => void
-  onEstado: (s: SprintStatus) => void
-  onEditar: () => void
-  onBorrar: () => void
-  onAsignarTarea: (id: string, dentro: boolean) => void
-  onAsignarProyecto: (id: string, dentro: boolean) => void
-  onMarcarTarea: (t: Task) => void
-  onCrearTarea: (titulo: string) => Promise<void>
-}) {
-  const [tab, setTab] = useState<'tareas' | 'proyectos'>('tareas')
-  const [anadir, setAnadir] = useState(false)
-  const [nueva, setNueva] = useState('')
-  const [creando, setCreando] = useState(false)
-
-  const tareas = contenido?.tareas ?? []
-  const proyectos = contenido?.proyectos ?? []
-  const dias = daysUntil(sprint.end_date)
-
-  // Lo que se puede meter: lo que no está ya aquí ni terminado.
-  const disponiblesTareas = todasTareas.filter(
-    (t) => t.sprint_id !== sprint.id && t.status !== 'done',
-  )
-  const disponiblesProyectos = todosProyectos.filter(
-    (p) => p.sprint_id !== sprint.id && p.status !== 'completado',
-  )
-
-  return (
-    <>
-      <Drawer
-        open
-        onClose={onClose}
-        width="lg"
-        title={
-          <span className="flex items-center gap-2.5">
-            <span aria-hidden>{sprint.emoji}</span>
-            {sprint.name}
-          </span>
-        }
-        subtitle={
-          <span className="flex flex-wrap items-center gap-1.5">
-            <CalendarRange className="size-3.5" />
-            {shortDate(sprint.start_date)} — {shortDate(sprint.end_date)}
-            {sprint.status !== 'cerrado' && (
-              <span className={cx('font-bold', dias < 0 ? 'text-bad' : 'text-accent')}>
-                {dias < 0 ? 'vencido' : dias === 0 ? 'acaba hoy' : `quedan ${dias} días`}
-              </span>
-            )}
-          </span>
-        }
-        footer={
-          <>
-            <Button
-              variant="danger"
-              size="sm"
-              icon={<Trash2 className="size-4" />}
-              onClick={onBorrar}
-            >
-              Borrar
-            </Button>
-            <div className="flex-1" />
-            <Button variant="outline" icon={<Pencil className="size-4" />} onClick={onEditar}>
-              Editar
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-5">
-          {sprint.goal && (
-            <div className="rounded-2xl bg-accent-soft p-4">
-              <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-accent uppercase">
-                <Flag className="size-3.5" />
-                Objetivo del sprint
-              </p>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink-2">{sprint.goal}</p>
-            </div>
-          )}
-
-          {/* --- Estado ------------------------------------------------------ */}
-          <div>
-            <p className="mb-2 text-[12px] font-bold tracking-wide text-ink-3 uppercase">Estado</p>
-            <div className="grid grid-cols-3 gap-2">
-              {STATUSES.map((s) => {
-                const on = sprint.status === s
-                return (
-                  <button
-                    key={s}
-                    onClick={() => onEstado(s)}
-                    className={cx(
-                      'rounded-2xl px-3 py-2.5 text-[13px] font-bold transition-all',
-                      on
-                        ? 'text-accent-ink shadow-glow [background:var(--grad)]'
-                        : 'bg-surface-2 text-ink-3 hover:text-ink',
-                    )}
-                  >
-                    {SPRINT_STATUS_LABEL[s]}
-                  </button>
-                )
-              })}
-            </div>
-            {sprint.status !== 'activo' && (
-              <p className="mt-2 text-[12px] text-ink-3">
-                Solo puede haber un sprint activo: al activar este, el anterior se cierra.
-              </p>
-            )}
-          </div>
-
-          {/* --- Avance ------------------------------------------------------ */}
-          <div>
-            <div className="mb-1.5 flex items-center justify-between text-[13px]">
-              <span className="text-ink-3">Avance</span>
-              <span className="tnum font-bold">
-                {contenido?.hechas ?? 0} de {tareas.length} · {Math.round(avance)}%
-              </span>
-            </div>
-            <ProgressBar value={avance} />
-          </div>
-
-          <Segmented
-            value={tab}
-            onChange={setTab}
-            options={[
-              { value: 'tareas', label: 'Tareas', count: tareas.length },
-              { value: 'proyectos', label: 'Proyectos', count: proyectos.length },
-            ]}
-          />
-
-          {tab === 'tareas' && (
-            /* Escribir una tarea aquí la crea ya dentro del sprint: es lo que
-               uno espera al planificarlo, sin dar el rodeo por Tareas. */
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault()
-                const titulo = nueva.trim()
-                if (!titulo) return
-                setCreando(true)
-                await onCrearTarea(titulo)
-                setNueva('')
-                setCreando(false)
-              }}
-              className="flex items-center gap-2 rounded-2xl border border-line bg-surface-2 p-2"
-            >
-              <Plus className="ml-1.5 size-5 shrink-0 text-accent" />
-              <input
-                value={nueva}
-                onChange={(e) => setNueva(e.target.value)}
-                placeholder="Escribe una tarea para este sprint…"
-                className="min-w-0 flex-1 bg-transparent py-2 text-sm placeholder:text-ink-3 focus:outline-none"
-              />
-              <Button type="submit" variant="primary" size="sm" loading={creando}>
-                Añadir
-              </Button>
-            </form>
-          )}
-
-          <Button
-            variant="outline"
-            className="w-full"
-            icon={<Plus className="size-4" />}
-            onClick={() => setAnadir(true)}
-          >
-            Traer {tab === 'tareas' ? 'tareas' : 'proyectos'} que ya tengo
-          </Button>
-
-          {tab === 'tareas' ? (
-            tareas.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-line-strong px-4 py-8 text-center text-sm text-ink-3">
-                Este sprint todavía no tiene tareas.
-              </p>
-            ) : (
-              <ul className="space-y-1.5">
-                {tareas.map((t) => (
-                  <li
-                    key={t.id}
-                    className="flex items-center gap-3 rounded-2xl border border-line bg-surface-2 px-3 py-2.5"
-                  >
-                    <Checkbox checked={t.status === 'done'} onChange={() => onMarcarTarea(t)} />
-                    <span
-                      className={cx(
-                        'min-w-0 flex-1 truncate text-sm',
-                        t.status === 'done' && 'text-ink-3 line-through decoration-2',
-                      )}
-                    >
-                      {t.title}
-                    </span>
-                    <IconButton
-                      label={`Sacar ${t.title} del sprint`}
-                      className="size-8"
-                      onClick={() => onAsignarTarea(t.id, false)}
-                    >
-                      <X className="size-3.5" />
-                    </IconButton>
-                  </li>
-                ))}
-              </ul>
-            )
-          ) : proyectos.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-line-strong px-4 py-8 text-center text-sm text-ink-3">
-              Este sprint todavía no tiene proyectos.
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {proyectos.map((p) => (
-                <li key={p.id} className="rounded-2xl border border-line bg-surface-2 p-3">
-                  <div className="flex items-center gap-3">
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-bold">{p.name}</span>
-                      <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-ink-3">
-                        {PROJECT_STATUS_LABEL[p.status]} ·{' '}
-                        <span className="tnum">{p.progress}%</span>
-                        {p.technologies.map((t) => (
-                          <Badge key={t} color={TECH_COLOR[t]}>
-                            {t}
-                          </Badge>
-                        ))}
-                      </span>
-                    </span>
-                    <IconButton
-                      label={`Sacar ${p.name} del sprint`}
-                      className="size-8"
-                      onClick={() => onAsignarProyecto(p.id, false)}
-                    >
-                      <X className="size-3.5" />
-                    </IconButton>
-                  </div>
-                  <ProgressBar className="mt-2" value={p.progress} height={5} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </Drawer>
-
-      {/* --- Selector de qué meter ------------------------------------------- */}
-      <Modal
-        open={anadir}
-        onClose={() => setAnadir(false)}
-        title={`Añadir ${tab === 'tareas' ? 'tareas' : 'proyectos'}`}
-        description={`Se moverán al sprint “${sprint.name}”.`}
-        footer={
-          <Button variant="primary" onClick={() => setAnadir(false)}>
-            Listo
-          </Button>
-        }
-      >
-        {tab === 'tareas' ? (
-          disponiblesTareas.length === 0 ? (
-            <p className="py-6 text-center text-sm text-ink-3">
-              No hay tareas pendientes fuera de este sprint.
-            </p>
-          ) : (
-            <ul className="space-y-1.5">
-              {disponiblesTareas.map((t) => (
-                <li key={t.id}>
-                  <button
-                    onClick={() => onAsignarTarea(t.id, true)}
-                    className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface-2 px-3 py-2.5 text-left transition-colors hover:border-accent hover:bg-accent-soft"
-                  >
-                    <Plus className="size-4 shrink-0 text-accent" />
-                    <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
-                    {t.sprint_id && <Badge>En otro sprint</Badge>}
-                    {t.is_backlog && <Badge>Backlog</Badge>}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )
-        ) : disponiblesProyectos.length === 0 ? (
-          <p className="py-6 text-center text-sm text-ink-3">
-            No hay proyectos sin terminar fuera de este sprint.
-          </p>
-        ) : (
-          <ul className="space-y-1.5">
-            {disponiblesProyectos.map((p) => (
-              <li key={p.id}>
-                <button
-                  onClick={() => onAsignarProyecto(p.id, true)}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface-2 px-3 py-2.5 text-left transition-colors hover:border-accent hover:bg-accent-soft"
-                >
-                  <Plus className="size-4 shrink-0 text-accent" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold">{p.name}</span>
-                    <span className="block text-[12px] text-ink-3">
-                      {PROJECT_STATUS_LABEL[p.status]} · {p.progress}%
-                    </span>
-                  </span>
-                  {p.sprint_id && <Badge>En otro sprint</Badge>}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Modal>
-    </>
   )
 }

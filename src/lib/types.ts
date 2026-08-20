@@ -7,7 +7,7 @@ export type ProjectStatus = 'idea' | 'planificado' | 'activo' | 'completado'
 export type ProjectArea = 'negocio' | 'personal' | 'formacion' | 'contenido'
 export type TripStatus = 'idea' | 'planificado' | 'reservado'
 export type WorkoutKind = 'fuerza' | 'cardio' | 'movilidad' | 'otro'
-export type CanvasParent = 'goal' | 'trip' | 'project'
+export type CanvasParent = 'goal' | 'trip' | 'project' | 'sprint'
 export type CanvasKind = 'nota' | 'guion' | 'idea' | 'enlace' | 'lista' | 'reserva'
 
 /* -------------------------------------------------------------------------- */

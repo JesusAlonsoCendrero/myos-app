@@ -13,6 +13,7 @@ import Objetivos from '@/pages/Objetivos'
 import Proyectos from '@/pages/Proyectos'
 import Tareas from '@/pages/Tareas'
 import Sprints from '@/pages/Sprints'
+import SprintDetalle from '@/pages/SprintDetalle'
 import Gimnasio from '@/pages/Gimnasio'
 import Viajes from '@/pages/Viajes'
 import Ajustes from '@/pages/Ajustes'
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="banco" element={<Navigate to="/proyectos" replace />} />
         <Route path="tareas" element={<Tareas />} />
         <Route path="sprints" element={<Sprints />} />
+        <Route path="sprints/:id" element={<SprintDetalle />} />
         {/* Gimnasio ya no sale en el menu, pero la ruta sigue viva por si
             quieres volver a el escribiendo /gimnasio. */}
         <Route path="gimnasio" element={<Gimnasio />} />
