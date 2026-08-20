@@ -413,6 +413,21 @@ export default function Sprints() {
               })
               .catch((e) => toast.error(friendlyError(e)))
           }
+          onCrearTarea={async (titulo) => {
+            try {
+              // Nace dentro del sprint y en el backlog: no ensucia Mi día hasta
+              // que decidas hacerla hoy.
+              const orden = tasks.rows.reduce((min, t) => Math.min(min, t.sort_order), 0) - 1
+              await tasks.insert({
+                title: titulo,
+                sprint_id: detalle.id,
+                is_backlog: true,
+                sort_order: orden,
+              })
+            } catch (e) {
+              toast.error(friendlyError(e))
+            }
+          }}
         />
       )}
 
@@ -635,6 +650,7 @@ function SprintDrawer({
   onAsignarTarea,
   onAsignarProyecto,
   onMarcarTarea,
+  onCrearTarea,
 }: {
   sprint: Sprint
   contenido?: Contenido
@@ -648,9 +664,12 @@ function SprintDrawer({
   onAsignarTarea: (id: string, dentro: boolean) => void
   onAsignarProyecto: (id: string, dentro: boolean) => void
   onMarcarTarea: (t: Task) => void
+  onCrearTarea: (titulo: string) => Promise<void>
 }) {
   const [tab, setTab] = useState<'tareas' | 'proyectos'>('tareas')
   const [anadir, setAnadir] = useState(false)
+  const [nueva, setNueva] = useState('')
+  const [creando, setCreando] = useState(false)
 
   const tareas = contenido?.tareas ?? []
   const proyectos = contenido?.proyectos ?? []
@@ -764,13 +783,41 @@ function SprintDrawer({
             ]}
           />
 
+          {tab === 'tareas' && (
+            /* Escribir una tarea aquí la crea ya dentro del sprint: es lo que
+               uno espera al planificarlo, sin dar el rodeo por Tareas. */
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault()
+                const titulo = nueva.trim()
+                if (!titulo) return
+                setCreando(true)
+                await onCrearTarea(titulo)
+                setNueva('')
+                setCreando(false)
+              }}
+              className="flex items-center gap-2 rounded-2xl border border-line bg-surface-2 p-2"
+            >
+              <Plus className="ml-1.5 size-5 shrink-0 text-accent" />
+              <input
+                value={nueva}
+                onChange={(e) => setNueva(e.target.value)}
+                placeholder="Escribe una tarea para este sprint…"
+                className="min-w-0 flex-1 bg-transparent py-2 text-sm placeholder:text-ink-3 focus:outline-none"
+              />
+              <Button type="submit" variant="primary" size="sm" loading={creando}>
+                Añadir
+              </Button>
+            </form>
+          )}
+
           <Button
             variant="outline"
             className="w-full"
             icon={<Plus className="size-4" />}
             onClick={() => setAnadir(true)}
           >
-            Añadir {tab === 'tareas' ? 'tareas' : 'proyectos'} al sprint
+            Traer {tab === 'tareas' ? 'tareas' : 'proyectos'} que ya tengo
           </Button>
 
           {tab === 'tareas' ? (
