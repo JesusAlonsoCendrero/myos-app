@@ -436,7 +436,15 @@ export default function SprintDetalle() {
 
                   <div className="mt-3">
                     <div className="mb-1.5 flex items-center justify-between text-[12px]">
-                      <span className="text-ink-3">Avance</span>
+                      <span className="inline-flex items-center gap-1 text-ink-3">
+                        <ListChecks className="size-3.5" />
+                        {(() => {
+                          const suyas = tasks.rows.filter((t) => t.project_id === p.id)
+                          return suyas.length
+                            ? `${suyas.filter((t) => t.status === 'done').length}/${suyas.length} tareas`
+                            : 'Sin tareas'
+                        })()}
+                      </span>
                       <span className="tnum font-bold">{p.progress}%</span>
                     </div>
                     <ProgressBar value={p.progress} height={6} />

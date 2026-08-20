@@ -6,6 +6,7 @@ import {
   ListChecks,
   Pencil,
   Plus,
+  Rocket,
   Search,
   Sun,
   Trash2,
@@ -47,6 +48,7 @@ import {
   type Project,
   type ProjectArea,
   type ProjectStatus,
+  type Sprint,
   type Task,
 } from '@/lib/types'
 import { CHART_COLORS } from '@/lib/palette'
@@ -97,6 +99,21 @@ export default function ProjectsBoard({ embedded = false }: { embedded?: boolean
   const tasks = useCollection<Task>('tasks', {
     shape: (q) => q.not('project_id', 'is', null),
   })
+
+  // Los sprints se ordenan por relevancia: primero el que está en marcha.
+  const sprints = useCollection<Sprint>('sprints', {
+    shape: (q) => q.order('start_date', { ascending: false }),
+  })
+
+  const sprintsOrdenados = useMemo(() => {
+    const peso: Record<string, number> = { activo: 0, planificado: 1, cerrado: 2 }
+    return [...sprints.rows].sort((a, b) => peso[a.status] - peso[b.status])
+  }, [sprints.rows])
+
+  const sprintPorId = useMemo(
+    () => new Map(sprints.rows.map((s) => [s.id, s])),
+    [sprints.rows],
+  )
 
   /** Tareas hechas / totales por proyecto, para el avance real. */
   const taskStats = useMemo(() => {
@@ -386,6 +403,12 @@ export default function ProjectsBoard({ embedded = false }: { embedded?: boolean
                       <Badge color={STATUS_COLOR[p.status]}>{PROJECT_STATUS_LABEL[p.status]}</Badge>
                       <Badge>{PROJECT_AREA_LABEL[p.area]}</Badge>
                       {p.priority === 2 && <Badge tone="warn">Prioridad alta</Badge>}
+                      {p.sprint_id && sprintPorId.has(p.sprint_id) && (
+                        <Badge>
+                          {sprintPorId.get(p.sprint_id)!.emoji}{' '}
+                          {sprintPorId.get(p.sprint_id)!.name}
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex shrink-0">
                       <IconButton
@@ -462,6 +485,7 @@ export default function ProjectsBoard({ embedded = false }: { embedded?: boolean
         <ProjectDrawer
           project={detail}
           tasks={tasks.rows.filter((t) => t.project_id === detail.id)}
+          sprints={sprintsOrdenados}
           onClose={() => setDetail(null)}
           onPatch={(v) => void patch(detail, v)}
           onEdit={() => {
@@ -612,6 +636,7 @@ export default function ProjectsBoard({ embedded = false }: { embedded?: boolean
 function ProjectDrawer({
   project,
   tasks,
+  sprints,
   onClose,
   onPatch,
   onEdit,
@@ -619,6 +644,7 @@ function ProjectDrawer({
 }: {
   project: Project
   tasks: Task[]
+  sprints: Sprint[]
   onClose: () => void
   onPatch: (values: Partial<Project>) => void
   onEdit: () => void
@@ -712,6 +738,56 @@ function ProjectDrawer({
             className="w-full accent-[var(--accent)]"
             aria-label="Avance del proyecto"
           />
+        </div>
+
+        {/* --- Sprint: el proyecto entero se mete en un bloque de tiempo ---- */}
+        <div>
+          <p className="mb-2 flex items-center gap-1.5 text-[12px] font-bold tracking-wide text-ink-3 uppercase">
+            <Rocket className="size-3.5" />
+            Sprint
+          </p>
+          {sprints.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-line-strong px-4 py-4 text-center text-[13px] text-ink-3">
+              Todavía no tienes ningún sprint. Créalo en el apartado Sprints y podrás meter
+              este proyecto dentro.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => onPatch({ sprint_id: null })}
+                className={cx(
+                  'rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors',
+                  project.sprint_id
+                    ? 'border-line bg-surface-2 text-ink-3 hover:text-ink'
+                    : 'border-transparent bg-accent-soft text-accent',
+                )}
+              >
+                Sin sprint
+              </button>
+              {sprints.map((sp) => {
+                const on = project.sprint_id === sp.id
+                return (
+                  <button
+                    key={sp.id}
+                    onClick={() => onPatch({ sprint_id: on ? null : sp.id })}
+                    className={cx(
+                      'inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors',
+                      on
+                        ? 'border-transparent text-accent-ink shadow-glow [background:var(--grad)]'
+                        : 'border-line bg-surface-2 text-ink-2 hover:border-line-strong',
+                      sp.status === 'cerrado' && !on && 'opacity-60',
+                    )}
+                  >
+                    <span aria-hidden>{sp.emoji}</span>
+                    <span className="max-w-[14rem] truncate">{sp.name}</span>
+                    {sp.status === 'activo' && !on && (
+                      <span className="size-1.5 rounded-full bg-accent" aria-hidden />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         <Button

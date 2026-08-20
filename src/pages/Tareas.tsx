@@ -24,6 +24,7 @@ import {
   GripVertical,
   Link2,
   ListChecks,
+  Moon,
   Plus,
   Star,
   Sun,
@@ -51,6 +52,8 @@ import {
   useToast,
 } from '@/components/ui'
 import { useCollection } from '@/hooks/useCollection'
+import { useAuth } from '@/context/AuthContext'
+import { arrastrarPendientes } from '@/lib/rollover'
 import { db, friendlyError } from '@/lib/supabase'
 import { humanDate, isOverdue, localDateOf, today } from '@/lib/dates'
 import {
@@ -74,9 +77,11 @@ interface LinkInfo {
 export default function Tareas() {
   const toast = useToast()
   const confirm = useConfirm()
+  const { user } = useAuth()
 
   const [view, setView] = useState<View>('hoy')
   const [detail, setDetail] = useState<Task | null>(null)
+  const [arrastradas, setArrastradas] = useState(0)
   const [quickTitle, setQuickTitle] = useState('')
   const [quickLink, setQuickLink] = useState('')
   const [adding, setAdding] = useState(false)
@@ -92,6 +97,23 @@ export default function Tareas() {
   const projects = useCollection<Project>('projects', {
     shape: (q) => q.neq('status', 'completado').order('name'),
   })
+
+  // Al abrir: lo que quedó pendiente de días anteriores baja al backlog.
+  // Sin candado de "efecto ya desmontado": en desarrollo React monta dos veces,
+  // el primer montaje es el que mueve las filas y el candado se comería el aviso.
+  useEffect(() => {
+    if (!user) return
+    arrastrarPendientes(user.id)
+      .then((n) => {
+        if (n === 0) return
+        setArrastradas(n)
+        void tasks.reload()
+      })
+      .catch(() => {
+        // Si falla no pasa nada: se reintenta la próxima vez que abras Tareas.
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   /** Proyectos que has puesto en Mi día: se ven arriba, antes de las tareas. */
   const pinnedProjects = useMemo(
@@ -331,6 +353,30 @@ export default function Tareas() {
           </div>
         </form>
       </Card>
+
+      {/* Aviso de lo que se ha arrastrado al backlog por no completarse. */}
+      {arrastradas > 0 && (
+        <Card className="animate-pop mb-5 flex items-center gap-3 p-3.5">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
+            <Moon className="size-4.5" />
+          </span>
+          <p className="min-w-0 flex-1 text-[13px] leading-relaxed text-ink-2">
+            <span className="font-bold">
+              {arrastradas === 1 ? '1 tarea' : `${arrastradas} tareas`}
+            </span>{' '}
+            de días anteriores {arrastradas === 1 ? 'ha' : 'han'} vuelto al backlog. Tráete a Mi
+            día lo que toque hoy.
+          </p>
+          {view === 'hoy' && (
+            <Button size="sm" variant="outline" onClick={() => setView('backlog')}>
+              Ver backlog
+            </Button>
+          )}
+          <IconButton label="Cerrar aviso" onClick={() => setArrastradas(0)}>
+            <X className="size-4" />
+          </IconButton>
+        </Card>
+      )}
 
       {tasks.error && <ErrorNote>{tasks.error}</ErrorNote>}
 
