@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronsRight,
   FolderKanban,
   LayoutGrid,
   ListPlus,
@@ -183,6 +184,22 @@ export default function Objetivos() {
           })
           .eq('id', goal.idea_id)
       }
+    } catch (e) {
+      toast.error(friendlyError(e))
+    }
+  }
+
+  /**
+   * Empuja un objetivo a la semana siguiente. Lo quitamos de la lista a mano
+   * porque la consulta está filtrada por semana y el objetivo ya no pertenece
+   * a esta.
+   */
+  async function pushToNextWeek(goal: WeeklyGoal) {
+    const destino = shiftWeek(goal.week_start, 1)
+    try {
+      await goals.update(goal.id, { week_start: destino })
+      goals.setRows((prev) => prev.filter((g) => g.id !== goal.id))
+      toast.success(`“${goal.title}” pasa a la semana del ${weekLabel(destino)}`)
     } catch (e) {
       toast.error(friendlyError(e))
     }
@@ -441,6 +458,12 @@ export default function Objetivos() {
                   </div>
 
                   <div className="flex shrink-0 flex-col items-center gap-0.5 sm:flex-row">
+                    <IconButton
+                      label="Mandar a la semana siguiente"
+                      onClick={() => void pushToNextWeek(goal)}
+                    >
+                      <ChevronsRight className="size-4" />
+                    </IconButton>
                     <IconButton label="Abrir lienzo" onClick={() => setCanvasGoal(goal)}>
                       <LayoutGrid className="size-4" />
                     </IconButton>
