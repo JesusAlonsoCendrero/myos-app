@@ -666,9 +666,11 @@ function TaskRow({
         // la página: el arrastre con el dedo lo activa la pulsación mantenida.
         handleProps && 'touch-manipulation select-none',
         handleProps && !levantada && 'cursor-grab active:cursor-grabbing',
-        // El original desaparece dejando su sitio libre: ese es el hueco que
-        // ves abrirse donde va a caer.
-        dragging && 'opacity-0',
+        // El original se queda como un hueco marcado (mismo tamaño, contenido
+        // oculto): así se ve con claridad dónde va a caer mientras las demás
+        // se apartan. outline y no border, que el borde cambiaría el tamaño.
+        dragging &&
+          'bg-surface-2/50 shadow-none outline-2 -outline-offset-2 outline-dashed outline-line-strong [&>*]:invisible',
         // La copia que viaja: fondo gris, despegada de la lista.
         levantada && 'cursor-grabbing bg-surface-2 shadow-lift ring-1 ring-line-strong',
         done && 'opacity-60',
