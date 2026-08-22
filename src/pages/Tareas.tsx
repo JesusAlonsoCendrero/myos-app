@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import {
   DndContext,
   KeyboardSensor,
-  MeasuringStrategy,
   MouseSensor,
   TouchSensor,
   closestCenter,
@@ -470,15 +469,10 @@ export default function Tareas() {
         />
       ) : (
         <div className="space-y-6">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onDragEnd}
-            // Sin esto dnd-kit se queda con las posiciones que midió al empezar:
-            // al subir una tarea, las de arriba ya se han desplazado y el hueco
-            // se calcula donde estaban antes, así que el arrastre parece trabado.
-            measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-          >
+          {/* Medición por defecto (una vez al empezar el gesto): al reordenar
+              dentro de una sola lista, volver a medir mientras las filas se
+              apartan devuelve posiciones ya desplazadas y el hueco baila. */}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={pending.map((t) => t.id)} strategy={verticalListSortingStrategy}>
               <ul className="stagger space-y-2">
                 {pending.map((task) => (
@@ -623,7 +617,7 @@ function TaskRow({
         // touch-manipulation (y no touch-none) para que deslizar siga moviendo
         // la página: el arrastre con el dedo lo activa la pulsación mantenida.
         handleProps && 'cursor-grab touch-manipulation select-none active:cursor-grabbing',
-        dragging && 'z-10 rotate-1 cursor-grabbing shadow-lift',
+        dragging && 'z-20 scale-[1.015] cursor-grabbing shadow-lift',
         done && 'opacity-60',
       )}
     >
