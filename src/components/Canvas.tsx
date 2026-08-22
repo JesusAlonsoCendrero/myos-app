@@ -30,10 +30,13 @@ export default function Canvas({
   parentType,
   parentId,
   emptyHint,
+  grande = false,
 }: {
   parentType: CanvasParent
   parentId: string
   emptyHint?: string
+  /** En una página entera caben más columnas y tarjetas más altas. */
+  grande?: boolean
 }) {
   const toast = useToast()
   const [adding, setAdding] = useState(false)
@@ -95,11 +98,17 @@ export default function Canvas({
           </p>
         </div>
       ) : (
-        <div className="columns-1 gap-3 sm:columns-2 [&>*]:mb-3 [&>*]:break-inside-avoid">
+        <div
+          className={cx(
+            'columns-1 gap-3 [&>*]:mb-3 [&>*]:break-inside-avoid',
+            grande ? 'sm:columns-2 xl:columns-3' : 'sm:columns-2',
+          )}
+        >
           {blocks.rows.map((block) => (
             <BlockCard
               key={block.id}
               block={block}
+              grande={grande}
               onSave={(patch) => save(block.id, patch)}
               onDelete={() =>
                 void blocks.remove(block.id).catch((e) => toast.error(friendlyError(e)))
@@ -118,10 +127,12 @@ function BlockCard({
   block,
   onSave,
   onDelete,
+  grande = false,
 }: {
   block: CanvasBlock
   onSave: (patch: Record<string, unknown>) => void
   onDelete: () => void
+  grande?: boolean
 }) {
   const meta = CANVAS_KINDS.find((k) => k.key === block.kind) ?? CANVAS_KINDS[0]
   const [title, setTitle] = useState(block.title ?? '')
@@ -211,7 +222,7 @@ function BlockCard({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onBlur={() => content !== (block.content ?? '') && onSave({ content: content || null })}
-            rows={isLink ? 2 : 5}
+            rows={isLink ? 2 : grande ? 9 : 5}
             placeholder={
               isLink
                 ? 'https://…'
@@ -219,7 +230,10 @@ function BlockCard({
                   ? 'Gancho, desarrollo, cierre…'
                   : 'Escribe aquí'
             }
-            className="border-0 bg-transparent px-0 py-0 text-[13px] leading-relaxed focus:bg-transparent"
+            className={cx(
+              'border-0 bg-transparent px-0 py-0 leading-relaxed focus:bg-transparent',
+              grande ? 'text-sm' : 'text-[13px]',
+            )}
           />
           {isLink && content.startsWith('http') && (
             <a

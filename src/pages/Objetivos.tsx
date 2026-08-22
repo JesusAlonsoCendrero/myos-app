@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft,
   ChevronRight,
@@ -18,7 +18,6 @@ import {
   Card,
   Checkbox,
   cx,
-  Drawer,
   EmptyState,
   ErrorNote,
   Field,
@@ -34,7 +33,6 @@ import {
   useConfirm,
   useToast,
 } from '@/components/ui'
-import Canvas from '@/components/Canvas'
 import { useCollection } from '@/hooks/useCollection'
 import { db, friendlyError } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
@@ -53,6 +51,7 @@ import {
 const emptyDraft = { title: '', detail: '', tech: '' }
 
 export default function Objetivos() {
+  const navegar = useNavigate()
   const { user } = useAuth()
   const toast = useToast()
   const confirm = useConfirm()
@@ -64,7 +63,6 @@ export default function Objetivos() {
   const [draft, setDraft] = useState(emptyDraft)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
-  const [canvasGoal, setCanvasGoal] = useState<WeeklyGoal | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [projectPicker, setProjectPicker] = useState(false)
   const [linking, setLinking] = useState(false)
@@ -414,14 +412,19 @@ export default function Objetivos() {
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <p
-                      className={cx(
-                        'font-display text-[17px] leading-snug font-bold',
-                        done && 'text-ink-3 line-through decoration-2',
-                      )}
+                    <button
+                      onClick={() => navegar(`/objetivos/${goal.id}`)}
+                      className="block max-w-full text-left"
                     >
-                      {goal.title}
-                    </p>
+                      <p
+                        className={cx(
+                          'font-display text-[17px] leading-snug font-bold underline-offset-4 hover:underline',
+                          done && 'text-ink-3 line-through decoration-2',
+                        )}
+                      >
+                        {goal.title}
+                      </p>
+                    </button>
                     {goal.detail && (
                       <p className="mt-1 text-[13px] leading-relaxed text-ink-3">{goal.detail}</p>
                     )}
@@ -464,7 +467,10 @@ export default function Objetivos() {
                     >
                       <ChevronsRight className="size-4" />
                     </IconButton>
-                    <IconButton label="Abrir lienzo" onClick={() => setCanvasGoal(goal)}>
+                    <IconButton
+                      label="Abrir el objetivo y su lienzo"
+                      onClick={() => navegar(`/objetivos/${goal.id}`)}
+                    >
                       <LayoutGrid className="size-4" />
                     </IconButton>
                     <IconButton label="Editar" onClick={() => openEdit(goal)}>
@@ -480,28 +486,6 @@ export default function Objetivos() {
           })}
         </ul>
       )}
-
-      {/* --- Lienzo del objetivo ------------------------------------------- */}
-      <Drawer
-        open={Boolean(canvasGoal)}
-        onClose={() => setCanvasGoal(null)}
-        width="lg"
-        title={canvasGoal?.title ?? ''}
-        subtitle={
-          <span className="flex items-center gap-2">
-            <span aria-hidden>{current.emoji}</span>
-            Lienzo de trabajo
-          </span>
-        }
-      >
-        {canvasGoal && (
-          <Canvas
-            parentType="goal"
-            parentId={canvasGoal.id}
-            emptyHint="Guiones, ideas de miniatura, enlaces de referencia, lo que necesites tener a mano para sacar esto adelante."
-          />
-        )}
-      </Drawer>
 
       {/* --- Traer de la semana anterior ----------------------------------- */}
       <ImportPreviousWeek

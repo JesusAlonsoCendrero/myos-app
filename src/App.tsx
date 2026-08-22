@@ -10,6 +10,7 @@ import Login from '@/pages/Login'
 import Conectando from '@/pages/Conectando'
 import Dashboard from '@/pages/Dashboard'
 import Objetivos from '@/pages/Objetivos'
+import ObjetivoDetalle from '@/pages/ObjetivoDetalle'
 import Proyectos from '@/pages/Proyectos'
 import Tareas from '@/pages/Tareas'
 import Sprints from '@/pages/Sprints'
@@ -47,6 +48,7 @@ export default function App() {
       <Route element={<AppShell />}>
         <Route index element={<Dashboard />} />
         <Route path="objetivos" element={<Objetivos />} />
+        <Route path="objetivos/:id" element={<ObjetivoDetalle />} />
         <Route path="proyectos" element={<Proyectos />} />
         {/* Ruta antigua del banco, por si quedó guardada en algún sitio. */}
         <Route path="banco" element={<Navigate to="/proyectos" replace />} />
