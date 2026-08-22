@@ -21,6 +21,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { CSS } from '@dnd-kit/utilities'
 import {
   Archive,
@@ -483,6 +484,9 @@ export default function Tareas() {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            // La lista es vertical: la tarjeta solo sube y baja. Sin esto se va
+            // de lado siguiendo el vaivén de la mano.
+            modifiers={[restrictToVerticalAxis]}
             onDragStart={(e: DragStartEvent) => setArrastrando(String(e.active.id))}
             onDragEnd={onDragEnd}
             onDragCancel={() => setArrastrando(null)}
