@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   DndContext,
   KeyboardSensor,
+  MeasuringStrategy,
   MouseSensor,
   TouchSensor,
   closestCenter,
@@ -469,7 +470,15 @@ export default function Tareas() {
         />
       ) : (
         <div className="space-y-6">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+            // Sin esto dnd-kit se queda con las posiciones que midió al empezar:
+            // al subir una tarea, las de arriba ya se han desplazado y el hueco
+            // se calcula donde estaban antes, así que el arrastre parece trabado.
+            measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+          >
             <SortableContext items={pending.map((t) => t.id)} strategy={verticalListSortingStrategy}>
               <ul className="stagger space-y-2">
                 {pending.map((task) => (
@@ -555,7 +564,14 @@ function SortableTask(props: TaskRowProps) {
     <TaskRow
       {...props}
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{
+        // Translate y no Transform: la lista es vertical, no hay escalado que
+        // aplicar y así el navegador no recalcula nada de más en cada píxel.
+        transform: CSS.Translate.toString(transform),
+        // La que arrastras va pegada al puntero; las demás sí se deslizan al
+        // hacerle sitio.
+        transition: isDragging ? 'none' : transition,
+      }}
       dragging={isDragging}
       handleProps={{ ...a11y, ...listeners }}
     />
@@ -603,7 +619,7 @@ function TaskRow({
       {...handleProps}
       className={cx(
         'group relative flex items-center gap-2 rounded-2xl bg-surface p-3 shadow-card',
-        'transition-[box-shadow,transform] duration-200 hover:shadow-lift',
+        'transition-shadow duration-200 hover:shadow-lift',
         // touch-manipulation (y no touch-none) para que deslizar siga moviendo
         // la página: el arrastre con el dedo lo activa la pulsación mantenida.
         handleProps && 'cursor-grab touch-manipulation select-none active:cursor-grabbing',
