@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import {
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -193,8 +194,12 @@ export default function Tareas() {
   )
 
   const sensors = useSensors(
-    // El umbral evita que un toque para marcar la casilla se lea como arrastre.
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    // Con el ratón se arrastra desde cualquier punto de la tarea: basta con
+    // moverla 6 píxeles, así un clic seco sigue abriendo el detalle.
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    // Con el dedo hace falta mantener pulsado un momento; si no, un desliz para
+    // bajar por la lista arrastraría la tarea en vez de mover la página.
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
@@ -541,13 +546,18 @@ function SortableTask(props: TaskRowProps) {
     id: props.task.id,
   })
 
+  // El asa es la fila entera. Le quitamos el role="button" que trae dnd-kit:
+  // dentro hay botones de verdad y un botón no puede contener otros. El
+  // tabIndex se queda, que es lo que permite reordenar con el teclado.
+  const { role: _role, 'aria-pressed': _pressed, ...a11y } = attributes
+
   return (
     <TaskRow
       {...props}
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       dragging={isDragging}
-      handleProps={{ ...attributes, ...listeners }}
+      handleProps={{ ...a11y, ...listeners }}
     />
   )
 }
@@ -590,24 +600,28 @@ function TaskRow({
     <li
       ref={ref}
       style={style}
+      {...handleProps}
       className={cx(
         'group relative flex items-center gap-2 rounded-2xl bg-surface p-3 shadow-card',
         'transition-[box-shadow,transform] duration-200 hover:shadow-lift',
-        dragging && 'z-10 rotate-1 shadow-lift',
+        // touch-manipulation (y no touch-none) para que deslizar siga moviendo
+        // la página: el arrastre con el dedo lo activa la pulsación mantenida.
+        handleProps && 'cursor-grab touch-manipulation select-none active:cursor-grabbing',
+        dragging && 'z-10 rotate-1 cursor-grabbing shadow-lift',
         done && 'opacity-60',
       )}
     >
       {handleProps && (
-        <button
-          {...handleProps}
-          aria-label="Reordenar"
-          className="shrink-0 cursor-grab touch-none rounded-lg p-1 text-ink-3 opacity-40 transition-opacity hover:opacity-100 active:cursor-grabbing"
+        <span
+          aria-hidden
+          className="shrink-0 p-1 text-ink-3 opacity-30 transition-opacity group-hover:opacity-70"
         >
           <GripVertical className="size-4" />
-        </button>
+        </span>
       )}
 
-      <div className="shrink-0">
+      {/* Los controles no arrastran: paran el gesto antes de que empiece. */}
+      <div className="shrink-0" onPointerDown={(e) => e.stopPropagation()}>
         <Checkbox checked={done} onChange={onToggle} color={link?.color} />
       </div>
 
@@ -634,7 +648,7 @@ function TaskRow({
         </div>
       </button>
 
-      <div className="flex shrink-0 items-center">
+      <div className="flex shrink-0 items-center" onPointerDown={(e) => e.stopPropagation()}>
         {onSun && (
           <IconButton
             label={
