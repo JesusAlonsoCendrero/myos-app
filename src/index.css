@@ -397,6 +397,29 @@
   .animate-breathe {
     animation: breathe 7s ease-in-out infinite;
   }
+
+  /* La barra de una tarea en curso: el color no para de correr, para que se
+     vea de un vistazo en qué estás trabajando ahora mismo. */
+  @keyframes corriente {
+    from {
+      background-position: 0% 50%;
+    }
+    to {
+      background-position: 200% 50%;
+    }
+  }
+  .animate-corriente {
+    background-image: linear-gradient(
+      90deg,
+      var(--accent) 0%,
+      var(--accent-2) 25%,
+      var(--joy) 50%,
+      var(--accent-2) 75%,
+      var(--accent) 100%
+    );
+    background-size: 200% 100%;
+    animation: corriente 2.4s linear infinite;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

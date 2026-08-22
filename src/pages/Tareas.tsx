@@ -31,6 +31,7 @@ import {
   Link2,
   ListChecks,
   Moon,
+  Play,
   Plus,
   Star,
   Sun,
@@ -500,7 +501,9 @@ export default function Tareas() {
                     link={linkOf(task)}
                     onToggle={() => void toggleDone(task)}
                     onOpen={() => setDetail(task)}
-                    onStar={() => void patch(task, { is_important: !task.is_important })}
+                    onCurso={() =>
+                      void patch(task, { status: task.status === 'doing' ? 'todo' : 'doing' })
+                    }
                     onSun={() =>
                       void patch(
                         task,
@@ -621,7 +624,8 @@ interface TaskRowProps {
   link?: LinkInfo
   onToggle: () => void
   onOpen: () => void
-  onStar?: () => void
+  /** Marcar que estás con ella ahora mismo. */
+  onCurso?: () => void
   onSun?: () => void
   onArchive?: () => void
   onDelete?: () => void
@@ -632,7 +636,7 @@ function TaskRow({
   link,
   onToggle,
   onOpen,
-  onStar,
+  onCurso,
   onSun,
   onArchive,
   onDelete,
@@ -651,8 +655,28 @@ function TaskRow({
   handleProps?: Record<string, unknown>
 }) {
   const done = task.status === 'done'
+  const enCurso = task.status === 'doing'
   const overdue = !done && isOverdue(task.due_date)
   const inMyDay = task.my_day_date === today()
+
+  // Los controles no deben arrancar un arrastre, pero sí recibir su clic. Hay
+  // que cortar los tres: el MouseSensor escucha mousedown (no pointerdown) y
+  // ahí hace preventDefault, que era justo lo que dejaba la casilla muerta.
+  const sinArrastre = {
+    onPointerDown: (e: React.PointerEvent) => e.stopPropagation(),
+    onMouseDown: (e: React.MouseEvent) => e.stopPropagation(),
+    onTouchStart: (e: React.TouchEvent) => e.stopPropagation(),
+  }
+
+  // Un solo fondo, elegido a propósito: dos utilidades bg-* en la misma clase
+  // se pisan según el orden del CSS generado, no del que las escribas.
+  const fondo = dragging
+    ? 'bg-surface-2/50'
+    : levantada
+      ? 'bg-surface-2'
+      : enCurso
+        ? 'bg-accent-soft/60'
+        : 'bg-surface'
 
   return (
     <li
@@ -660,7 +684,8 @@ function TaskRow({
       style={style}
       {...handleProps}
       className={cx(
-        'group relative flex items-center gap-2 rounded-2xl bg-surface p-3 shadow-card',
+        'group relative flex items-center gap-2 rounded-2xl p-3 shadow-card',
+        fondo,
         'transition-shadow duration-200 hover:shadow-lift',
         // touch-manipulation (y no touch-none) para que deslizar siga moviendo
         // la página: el arrastre con el dedo lo activa la pulsación mantenida.
@@ -670,12 +695,20 @@ function TaskRow({
         // oculto): así se ve con claridad dónde va a caer mientras las demás
         // se apartan. outline y no border, que el borde cambiaría el tamaño.
         dragging &&
-          'bg-surface-2/50 shadow-none outline-2 -outline-offset-2 outline-dashed outline-line-strong [&>*]:invisible',
+          'shadow-none outline-2 -outline-offset-2 outline-dashed outline-line-strong [&>*]:invisible',
         // La copia que viaja: fondo gris, despegada de la lista.
-        levantada && 'cursor-grabbing bg-surface-2 shadow-lift ring-1 ring-line-strong',
+        levantada && 'cursor-grabbing shadow-lift ring-1 ring-line-strong',
+        // En curso: la tarea se tiñe y le corre una línea de color por debajo.
+        enCurso && !dragging && 'ring-1 ring-accent/35',
         done && 'opacity-60',
       )}
     >
+      {enCurso && !dragging && (
+        <span
+          aria-hidden
+          className="animate-corriente pointer-events-none absolute inset-x-0 bottom-0 h-[3px] rounded-b-2xl"
+        />
+      )}
       {handleProps && (
         <span
           aria-hidden
@@ -686,12 +719,18 @@ function TaskRow({
       )}
 
       {/* Los controles no arrastran: paran el gesto antes de que empiece. */}
-      <div className="shrink-0" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="shrink-0" {...sinArrastre}>
         <Checkbox checked={done} onChange={onToggle} color={link?.color} />
       </div>
 
       <button onClick={onOpen} className="min-w-0 flex-1 py-0.5 text-left">
-        <p className={cx('truncate text-sm font-medium', done && 'line-through decoration-2')}>
+        <p
+          className={cx(
+            'truncate text-sm font-medium',
+            done && 'line-through decoration-2',
+            enCurso && 'text-accent',
+          )}
+        >
           {task.title}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-ink-3">
@@ -709,11 +748,17 @@ function TaskRow({
               {humanDate(task.due_date)}
             </span>
           )}
+          {enCurso && (
+            <span className="inline-flex items-center gap-1 font-bold text-accent">
+              <span className="size-1.5 animate-beat rounded-full bg-accent" aria-hidden />
+              En curso
+            </span>
+          )}
           {task.priority === 2 && <Badge tone="warn">{PRIORITY_LABEL[2]}</Badge>}
         </div>
       </button>
 
-      <div className="flex shrink-0 items-center" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="flex shrink-0 items-center" {...sinArrastre}>
         {onSun && (
           <IconButton
             label={
@@ -734,13 +779,13 @@ function TaskRow({
             <Archive className="size-4" />
           </IconButton>
         )}
-        {onStar && (
+        {onCurso && (
           <IconButton
-            label={task.is_important ? 'Quitar importancia' : 'Marcar importante'}
-            onClick={onStar}
-            className={task.is_important ? 'text-joy' : ''}
+            label={enCurso ? 'Ya no estoy con esta' : 'Estoy con esta ahora mismo'}
+            onClick={onCurso}
+            className={enCurso ? 'text-accent' : ''}
           >
-            <Star className={cx('size-4', task.is_important && 'fill-current')} />
+            <Play className={cx('size-4', enCurso && 'fill-current')} />
           </IconButton>
         )}
         {onDelete && (
