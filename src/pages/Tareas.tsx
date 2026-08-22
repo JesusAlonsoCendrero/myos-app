@@ -2,13 +2,16 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
   closestCenter,
+  defaultDropAnimationSideEffects,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core'
 import {
   SortableContext,
@@ -82,6 +85,7 @@ export default function Tareas() {
 
   const [view, setView] = useState<View>('hoy')
   const [detail, setDetail] = useState<Task | null>(null)
+  const [arrastrando, setArrastrando] = useState<string | null>(null)
   const [arrastradas, setArrastradas] = useState(0)
   const [quickTitle, setQuickTitle] = useState('')
   const [quickLink, setQuickLink] = useState('')
@@ -193,6 +197,8 @@ export default function Tareas() {
     [tasks.rows, iso],
   )
 
+  const levantada = arrastrando ? (pending.find((t) => t.id === arrastrando) ?? null) : null
+
   const sensors = useSensors(
     // Con el ratón se arrastra desde cualquier punto de la tarea: basta con
     // moverla 6 píxeles, así un clic seco sigue abriendo el detalle.
@@ -204,6 +210,7 @@ export default function Tareas() {
   )
 
   async function onDragEnd(event: DragEndEvent) {
+    setArrastrando(null)
     const { active, over } = event
     if (!over || active.id === over.id) return
 
@@ -469,10 +476,16 @@ export default function Tareas() {
         />
       ) : (
         <div className="space-y-6">
-          {/* Medición por defecto (una vez al empezar el gesto): al reordenar
-              dentro de una sola lista, volver a medir mientras las filas se
-              apartan devuelve posiciones ya desplazadas y el hueco baila. */}
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          {/* La tarea que coges se despega de la lista y viaja en una capa
+              aparte (DragOverlay), pegada al puntero. En su sitio queda el
+              hueco y las demás bajan para dejárselo. */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={(e: DragStartEvent) => setArrastrando(String(e.active.id))}
+            onDragEnd={onDragEnd}
+            onDragCancel={() => setArrastrando(null)}
+          >
             <SortableContext items={pending.map((t) => t.id)} strategy={verticalListSortingStrategy}>
               <ul className="stagger space-y-2">
                 {pending.map((task) => (
@@ -501,6 +514,27 @@ export default function Tareas() {
                 ))}
               </ul>
             </SortableContext>
+
+            <DragOverlay
+              dropAnimation={{
+                duration: 220,
+                easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                sideEffects: defaultDropAnimationSideEffects({
+                  styles: { active: { opacity: '0' } },
+                }),
+              }}
+            >
+              {levantada && (
+                <TaskRow
+                  task={levantada}
+                  link={linkOf(levantada)}
+                  onToggle={() => {}}
+                  onOpen={() => {}}
+                  handleProps={{}}
+                  levantada
+                />
+              )}
+            </DragOverlay>
           </DndContext>
 
           {completed.length > 0 && (
@@ -562,9 +596,7 @@ function SortableTask(props: TaskRowProps) {
         // Translate y no Transform: la lista es vertical, no hay escalado que
         // aplicar y así el navegador no recalcula nada de más en cada píxel.
         transform: CSS.Translate.toString(transform),
-        // La que arrastras va pegada al puntero; las demás sí se deslizan al
-        // hacerle sitio.
-        transition: isDragging ? 'none' : transition,
+        transition,
       }}
       dragging={isDragging}
       handleProps={{ ...a11y, ...listeners }}
@@ -595,11 +627,15 @@ function TaskRow({
   ref,
   style,
   dragging,
+  levantada,
   handleProps,
 }: TaskRowProps & {
   ref?: React.Ref<HTMLLIElement>
   style?: React.CSSProperties
+  /** Es la de origen mientras la arrastras: se queda como hueco. */
   dragging?: boolean
+  /** Es la copia que viaja con el puntero. */
+  levantada?: boolean
   handleProps?: Record<string, unknown>
 }) {
   const done = task.status === 'done'
@@ -616,8 +652,13 @@ function TaskRow({
         'transition-shadow duration-200 hover:shadow-lift',
         // touch-manipulation (y no touch-none) para que deslizar siga moviendo
         // la página: el arrastre con el dedo lo activa la pulsación mantenida.
-        handleProps && 'cursor-grab touch-manipulation select-none active:cursor-grabbing',
-        dragging && 'z-20 scale-[1.015] cursor-grabbing shadow-lift',
+        handleProps && 'touch-manipulation select-none',
+        handleProps && !levantada && 'cursor-grab active:cursor-grabbing',
+        // El original desaparece dejando su sitio libre: ese es el hueco que
+        // ves abrirse donde va a caer.
+        dragging && 'opacity-0',
+        // La copia que viaja: fondo gris, despegada de la lista.
+        levantada && 'cursor-grabbing bg-surface-2 shadow-lift ring-1 ring-line-strong',
         done && 'opacity-60',
       )}
     >
