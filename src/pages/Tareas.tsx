@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import {
   DndContext,
@@ -515,26 +516,33 @@ export default function Tareas() {
               </ul>
             </SortableContext>
 
-            <DragOverlay
-              dropAnimation={{
-                duration: 220,
-                easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-                sideEffects: defaultDropAnimationSideEffects({
-                  styles: { active: { opacity: '0' } },
-                }),
-              }}
-            >
-              {levantada && (
-                <TaskRow
-                  task={levantada}
-                  link={linkOf(levantada)}
-                  onToggle={() => {}}
-                  onOpen={() => {}}
-                  handleProps={{}}
-                  levantada
-                />
-              )}
-            </DragOverlay>
+            {/* Al cuerpo del documento: la página entra con `animate-rise`, que
+                deja un transform puesto (fill-mode both), y cualquier ancestro
+                con transform se convierte en el marco de un position:fixed. Sin
+                el portal la capa salía desplazada el ancho de la barra lateral. */}
+            {createPortal(
+              <DragOverlay
+                dropAnimation={{
+                  duration: 220,
+                  easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                  sideEffects: defaultDropAnimationSideEffects({
+                    styles: { active: { opacity: '0' } },
+                  }),
+                }}
+              >
+                {levantada && (
+                  <TaskRow
+                    task={levantada}
+                    link={linkOf(levantada)}
+                    onToggle={() => {}}
+                    onOpen={() => {}}
+                    handleProps={{}}
+                    levantada
+                  />
+                )}
+              </DragOverlay>,
+              document.body,
+            )}
           </DndContext>
 
           {completed.length > 0 && (
