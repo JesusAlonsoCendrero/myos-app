@@ -5,12 +5,12 @@ import {
   ChartNoAxesCombined,
   Home,
   Lightbulb,
+  CalendarDays,
   ListChecks,
   LogOut,
   Moon,
   MoreHorizontal,
   Plane,
-  Rocket,
   Settings,
   Sun,
   Target,
@@ -32,7 +32,10 @@ const NAV: NavItem[] = [
   { to: '/objetivos', label: 'Objetivos', icon: Target },
   { to: '/proyectos', label: 'Proyectos', icon: Lightbulb },
   { to: '/tareas', label: 'Tareas', icon: ListChecks },
-  { to: '/sprints', label: 'Sprints', icon: Rocket },
+  { to: '/calendario', label: 'Calendario', icon: CalendarDays },
+  // Sprints retirado del menu. El apartado sigue existiendo en /sprints:
+  // descomenta esta linea para recuperarlo.
+  // { to: '/sprints', label: 'Sprints', icon: Rocket },  (reimporta Rocket de lucide)
   // Gimnasio retirado del menu. El apartado sigue existiendo en /gimnasio:
   // descomenta esta linea para recuperarlo.
   // { to: '/gimnasio', label: 'Gimnasio', icon: Dumbbell },
@@ -42,7 +45,7 @@ const NAV: NavItem[] = [
 ]
 
 /** Los cuatro accesos fijos de la barra inferior; el resto va en "Más". */
-const MOBILE_PRIMARY = ['/', '/objetivos', '/tareas', '/sprints']
+const MOBILE_PRIMARY = ['/', '/objetivos', '/tareas', '/calendario']
 
 const SPRING = { type: 'spring', stiffness: 420, damping: 36 } as const
 

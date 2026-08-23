@@ -4,8 +4,8 @@
     {
       "name": "myos-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--host"],
-      "port": 5173
+      "runtimeArgs": ["run", "dev", "--", "--host", "--port", "5174"],
+      "port": 5174
     }
   ]
 }

@@ -96,6 +96,8 @@ export interface Idea {
   author: string | null
   /** Sprint en el que se va a abordar, si lo hay. */
   sprint_id: string | null
+  /** El día en que quieres publicarla. Lo pone el calendario. */
+  publish_date: string | null
   sort_order: number
   created_at: string
   done_at: string | null
