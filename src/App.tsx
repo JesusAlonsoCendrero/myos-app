@@ -12,6 +12,7 @@ import Dashboard from '@/pages/Dashboard'
 import Objetivos from '@/pages/Objetivos'
 import ObjetivoDetalle from '@/pages/ObjetivoDetalle'
 import Proyectos from '@/pages/Proyectos'
+import ProyectoDetalle from '@/pages/ProyectoDetalle'
 import Tareas from '@/pages/Tareas'
 import Sprints from '@/pages/Sprints'
 import Calendario from '@/pages/Calendario'
@@ -51,6 +52,8 @@ export default function App() {
         <Route path="objetivos" element={<Objetivos />} />
         <Route path="objetivos/:id" element={<ObjetivoDetalle />} />
         <Route path="proyectos" element={<Proyectos />} />
+        <Route path="proyectos/:id" element={<ProyectoDetalle tipo="project" />} />
+        <Route path="ideas/:id" element={<ProyectoDetalle tipo="idea" />} />
         {/* Ruta antigua del banco, por si quedó guardada en algún sitio. */}
         <Route path="banco" element={<Navigate to="/proyectos" replace />} />
         <Route path="tareas" element={<Tareas />} />

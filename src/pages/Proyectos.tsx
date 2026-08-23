@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   CalendarPlus,
   Check,
@@ -67,6 +68,7 @@ const emptyDraft = {
  * El frente "Proyectos" no son notas sueltas: es el tablero completo.
  */
 export default function Proyectos() {
+  const navegar = useNavigate()
   const toast = useToast()
   const confirm = useConfirm()
 
@@ -492,7 +494,10 @@ export default function Proyectos() {
                     {IDEA_STATUS_EMOJI[idea.status]}
                   </span>
 
-                  <button onClick={() => openEdit(idea)} className="min-w-0 flex-1 text-left">
+                  <button
+                    onClick={() => navegar(`/ideas/${idea.id}`)}
+                    className="min-w-0 flex-1 text-left"
+                  >
                     <p
                       className={cx(
                         'font-display text-[16px] leading-snug font-bold',

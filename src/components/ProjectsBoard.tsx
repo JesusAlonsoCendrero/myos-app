@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   CalendarClock,
   Check,
@@ -6,19 +7,15 @@ import {
   ListChecks,
   Pencil,
   Plus,
-  Rocket,
   Search,
   Sun,
-  Trash2,
   X,
 } from 'lucide-react'
 import {
   Badge,
   Button,
   Card,
-  Checkbox,
   cx,
-  Drawer,
   EmptyState,
   ErrorNote,
   Field,
@@ -31,17 +28,14 @@ import {
   Select,
   Spinner,
   Textarea,
-  useConfirm,
   useToast,
 } from '@/components/ui'
-import Canvas from '@/components/Canvas'
 import { useCollection } from '@/hooks/useCollection'
 import { friendlyError } from '@/lib/supabase'
 import { shortDate, today } from '@/lib/dates'
 import {
   PRIORITY_LABEL,
   PROJECT_AREA_LABEL,
-  PROJECT_STATUS_EMOJI,
   PROJECT_STATUS_LABEL,
   TECH_COLOR,
   TECHNOLOGIES,
@@ -79,8 +73,8 @@ const emptyDraft = {
  * "Proyectos" del Banco de ideas.
  */
 export default function ProjectsBoard({ embedded = false }: { embedded?: boolean } = {}) {
+  const navegar = useNavigate()
   const toast = useToast()
-  const confirm = useConfirm()
 
   const [status, setStatus] = useState<ProjectStatus | 'todos'>('todos')
   const [techs, setTechs] = useState<string[]>([])
@@ -90,7 +84,6 @@ export default function ProjectsBoard({ embedded = false }: { embedded?: boolean
   const [draft, setDraft] = useState(emptyDraft)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
-  const [detail, setDetail] = useState<Project | null>(null)
 
   const projects = useCollection<Project>('projects', {
     shape: (q) => q.order('priority', { ascending: false }).order('created_at', { ascending: false }),
@@ -104,11 +97,6 @@ export default function ProjectsBoard({ embedded = false }: { embedded?: boolean
   const sprints = useCollection<Sprint>('sprints', {
     shape: (q) => q.order('start_date', { ascending: false }),
   })
-
-  const sprintsOrdenados = useMemo(() => {
-    const peso: Record<string, number> = { activo: 0, planificado: 1, cerrado: 2 }
-    return [...sprints.rows].sort((a, b) => peso[a.status] - peso[b.status])
-  }, [sprints.rows])
 
   const sprintPorId = useMemo(
     () => new Map(sprints.rows.map((s) => [s.id, s])),
@@ -209,24 +197,6 @@ export default function ProjectsBoard({ embedded = false }: { embedded?: boolean
   async function patch(p: Project, values: Partial<Project>) {
     try {
       await projects.update(p.id, values as Record<string, unknown>)
-      setDetail((d) => (d && d.id === p.id ? { ...d, ...values } : d))
-    } catch (e) {
-      toast.error(friendlyError(e))
-    }
-  }
-
-  async function removeProject(p: Project) {
-    const ok = await confirm({
-      title: '¿Borrar proyecto?',
-      message: `Se eliminará “${p.name}”. Sus tareas se quedarán sueltas.`,
-      confirmLabel: 'Borrar',
-      danger: true,
-    })
-    if (!ok) return
-    try {
-      await projects.remove(p.id)
-      setDetail(null)
-      toast.success('Proyecto borrado')
     } catch (e) {
       toast.error(friendlyError(e))
     }
@@ -424,7 +394,7 @@ export default function ProjectsBoard({ embedded = false }: { embedded?: boolean
                     </div>
                   </div>
 
-                  <button onClick={() => setDetail(p)} className="mt-2.5 text-left">
+                  <button onClick={() => navegar(`/proyectos/${p.id}`)} className="mt-2.5 text-left">
                     <h3 className="font-display text-lg leading-snug font-bold">{p.name}</h3>
                     {p.description && (
                       <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-ink-3">
@@ -478,22 +448,6 @@ export default function ProjectsBoard({ embedded = false }: { embedded?: boolean
             })}
           </ul>
         </>
-      )}
-
-      {/* --- Detalle -------------------------------------------------------- */}
-      {detail && (
-        <ProjectDrawer
-          project={detail}
-          tasks={tasks.rows.filter((t) => t.project_id === detail.id)}
-          sprints={sprintsOrdenados}
-          onClose={() => setDetail(null)}
-          onPatch={(v) => void patch(detail, v)}
-          onEdit={() => {
-            setDetail(null)
-            openEdit(detail)
-          }}
-          onDelete={() => void removeProject(detail)}
-        />
       )}
 
       {/* --- Alta / edición -------------------------------------------------- */}
@@ -628,225 +582,5 @@ export default function ProjectsBoard({ embedded = false }: { embedded?: boolean
         </div>
       </Modal>
     </div>
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-
-function ProjectDrawer({
-  project,
-  tasks,
-  sprints,
-  onClose,
-  onPatch,
-  onEdit,
-  onDelete,
-}: {
-  project: Project
-  tasks: Task[]
-  sprints: Sprint[]
-  onClose: () => void
-  onPatch: (values: Partial<Project>) => void
-  onEdit: () => void
-  onDelete: () => void
-}) {
-  const [tab, setTab] = useState<'tareas' | 'lienzo'>('tareas')
-  const inMyDay = project.my_day_date === today()
-  const done = tasks.filter((t) => t.status === 'done').length
-
-  return (
-    <Drawer
-      open
-      onClose={onClose}
-      width="lg"
-      title={project.name}
-      subtitle={
-        <span className="flex flex-wrap items-center gap-1.5">
-          <Badge color={STATUS_COLOR[project.status]}>{PROJECT_STATUS_LABEL[project.status]}</Badge>
-          {project.technologies.map((t) => (
-            <Badge key={t} color={TECH_COLOR[t]}>
-              {t}
-            </Badge>
-          ))}
-        </span>
-      }
-      footer={
-        <>
-          <Button variant="danger" size="sm" icon={<Trash2 className="size-4" />} onClick={onDelete}>
-            Borrar
-          </Button>
-          <div className="flex-1" />
-          <Button variant="outline" icon={<Pencil className="size-4" />} onClick={onEdit}>
-            Editar
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-5">
-        {project.description && (
-          <p className="text-sm leading-relaxed text-ink-2">{project.description}</p>
-        )}
-
-        {/* --- Estado: se cambia aquí mismo, sin abrir el formulario ------- */}
-        <div>
-          <p className="mb-2 text-[12px] font-bold tracking-wide text-ink-3 uppercase">Estado</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {STATUSES.map((s) => {
-              const on = project.status === s
-              return (
-                <button
-                  key={s}
-                  onClick={() =>
-                    onPatch({
-                      status: s,
-                      // Darlo por completado deja el avance al 100 sin tener que tocarlo.
-                      ...(s === 'completado' && project.progress < 100 ? { progress: 100 } : {}),
-                      updated_at: new Date().toISOString(),
-                    })
-                  }
-                  className={cx(
-                    'flex flex-col items-center gap-1 rounded-2xl border px-2 py-3 text-[12px] font-bold transition-colors',
-                    on ? 'border-transparent text-white' : 'border-line bg-surface-2 text-ink-3 hover:text-ink',
-                  )}
-                  style={on ? { backgroundColor: STATUS_COLOR[s] } : undefined}
-                >
-                  <span className="text-base" aria-hidden>
-                    {PROJECT_STATUS_EMOJI[s]}
-                  </span>
-                  {PROJECT_STATUS_LABEL[s]}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* --- Avance: ajustable con la barra ------------------------------ */}
-        <div>
-          <div className="mb-1.5 flex items-center justify-between text-[13px]">
-            <span className="text-ink-3">Avance</span>
-            <span className="tnum font-bold">{project.progress}%</span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={project.progress}
-            onChange={(e) =>
-              onPatch({ progress: Number(e.target.value), updated_at: new Date().toISOString() })
-            }
-            className="w-full accent-[var(--accent)]"
-            aria-label="Avance del proyecto"
-          />
-        </div>
-
-        {/* --- Sprint: el proyecto entero se mete en un bloque de tiempo ---- */}
-        <div>
-          <p className="mb-2 flex items-center gap-1.5 text-[12px] font-bold tracking-wide text-ink-3 uppercase">
-            <Rocket className="size-3.5" />
-            Sprint
-          </p>
-          {sprints.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-line-strong px-4 py-4 text-center text-[13px] text-ink-3">
-              Todavía no tienes ningún sprint. Créalo en el apartado Sprints y podrás meter
-              este proyecto dentro.
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => onPatch({ sprint_id: null })}
-                className={cx(
-                  'rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors',
-                  project.sprint_id
-                    ? 'border-line bg-surface-2 text-ink-3 hover:text-ink'
-                    : 'border-transparent bg-accent-soft text-accent',
-                )}
-              >
-                Sin sprint
-              </button>
-              {sprints.map((sp) => {
-                const on = project.sprint_id === sp.id
-                return (
-                  <button
-                    key={sp.id}
-                    onClick={() => onPatch({ sprint_id: on ? null : sp.id })}
-                    className={cx(
-                      'inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors',
-                      on
-                        ? 'border-transparent text-accent-ink shadow-glow [background:var(--grad)]'
-                        : 'border-line bg-surface-2 text-ink-2 hover:border-line-strong',
-                      sp.status === 'cerrado' && !on && 'opacity-60',
-                    )}
-                  >
-                    <span aria-hidden>{sp.emoji}</span>
-                    <span className="max-w-[14rem] truncate">{sp.name}</span>
-                    {sp.status === 'activo' && !on && (
-                      <span className="size-1.5 rounded-full bg-accent" aria-hidden />
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        <Button
-          variant={inMyDay ? 'soft' : 'outline'}
-          className="w-full"
-          icon={<Sun className={cx('size-4', inMyDay && 'fill-current')} />}
-          onClick={() => onPatch({ my_day_date: inMyDay ? null : today() })}
-        >
-          {inMyDay ? 'Quitar de Mi día' : 'Poner en Mi día'}
-        </Button>
-
-        <Segmented
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: 'tareas', label: 'Tareas', count: tasks.length },
-            { value: 'lienzo', label: 'Lienzo' },
-          ]}
-        />
-
-        {tab === 'tareas' ? (
-          tasks.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-line-strong px-4 py-6 text-center text-sm text-ink-3">
-              Sin tareas todavía. Créalas desde Mi día eligiendo este proyecto.
-            </p>
-          ) : (
-            <>
-              <p className="tnum text-[12px] text-ink-3">
-                {done} de {tasks.length} completadas
-              </p>
-              <ul className="space-y-1.5">
-                {tasks.map((t) => (
-                  <li
-                    key={t.id}
-                    className="flex items-center gap-3 rounded-2xl border border-line bg-surface-2 px-3 py-2.5"
-                  >
-                    <Checkbox checked={t.status === 'done'} onChange={() => {}} />
-                    <span
-                      className={cx(
-                        'min-w-0 flex-1 truncate text-sm',
-                        t.status === 'done' && 'text-ink-3 line-through decoration-2',
-                      )}
-                    >
-                      {t.title}
-                    </span>
-                    {t.is_backlog && <Badge>Backlog</Badge>}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )
-        ) : (
-          <Canvas
-            parentType="project"
-            parentId={project.id}
-            emptyHint="Requisitos, decisiones técnicas, enlaces a la documentación, presupuesto… lo que necesites tener a mano."
-          />
-        )}
-      </div>
-    </Drawer>
   )
 }

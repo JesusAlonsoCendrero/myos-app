@@ -7,7 +7,7 @@ export type ProjectStatus = 'idea' | 'planificado' | 'activo' | 'completado'
 export type ProjectArea = 'negocio' | 'personal' | 'formacion' | 'contenido'
 export type TripStatus = 'idea' | 'planificado' | 'reservado'
 export type WorkoutKind = 'fuerza' | 'cardio' | 'movilidad' | 'otro'
-export type CanvasParent = 'goal' | 'trip' | 'project' | 'sprint'
+export type CanvasParent = 'goal' | 'trip' | 'project' | 'sprint' | 'idea'
 export type CanvasKind = 'nota' | 'guion' | 'idea' | 'enlace' | 'lista' | 'reserva'
 
 /* -------------------------------------------------------------------------- */
@@ -98,6 +98,8 @@ export interface Idea {
   sprint_id: string | null
   /** El día en que quieres publicarla. Lo pone el calendario. */
   publish_date: string | null
+  /** Texto largo y libre: el planteamiento, el guion, lo que se te ocurra. */
+  document: string | null
   sort_order: number
   created_at: string
   done_at: string | null
@@ -337,6 +339,8 @@ export interface Project {
   my_day_date: string | null
   /** Sprint en el que se está trabajando, si lo hay. */
   sprint_id: string | null
+  /** Texto largo y libre: el planteamiento, las ideas, las decisiones. */
+  document: string | null
   created_at: string
   updated_at: string
 }
