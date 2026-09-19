@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import {
   addMonths,
   eachDayOfInterval,
@@ -10,22 +11,34 @@ import {
 import { es } from 'date-fns/locale'
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import {
+  Badge,
   Button,
   Card,
+  Checkbox,
   cx,
   Drawer,
   ErrorNote,
   Field,
   IconButton,
   Input,
+  ProgressBar,
   SectionTitle,
+  Segmented,
   Select,
   Spinner,
   useToast,
 } from '@/components/ui'
 import { useCollection } from '@/hooks/useCollection'
 import { friendlyError } from '@/lib/supabase'
-import { longDate, toISODate, today } from '@/lib/dates'
+import {
+  dayShort,
+  longDate,
+  toISODate,
+  today,
+  weekLabel,
+  weekNumberLabel,
+  weekStart,
+} from '@/lib/dates'
 import { BANK_GROUPS, type BankGroup, type Idea } from '@/lib/types'
 
 const WEEKDAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
@@ -44,6 +57,7 @@ const PUBLICABLES = BANK_GROUPS.filter((g) => g.key !== 'ver')
 
 export default function Calendario() {
   const toast = useToast()
+  const [vista, setVista] = useState<'mes' | 'lista'>('mes')
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()))
   const [dia, setDia] = useState<string | null>(null)
   const [frente, setFrente] = useState<BankGroup | 'todos'>('todos')
@@ -78,6 +92,29 @@ export default function Calendario() {
     [ideas.rows, frente],
   )
 
+  /**
+   * Todo lo programado, repartido por semanas y ordenado por día. La lista no
+   * depende del mes que estés mirando: enseña el calendario entero para que no
+   * se te escape nada por estar en otra página.
+   */
+  const porSemana = useMemo(() => {
+    const map = new Map<string, Idea[]>()
+    for (const i of ideas.rows) {
+      if (!i.publish_date) continue
+      if (frente !== 'todos' && i.group_key !== frente) continue
+      const lunes = weekStart(new Date(`${i.publish_date}T12:00:00`))
+      const lista = map.get(lunes) ?? []
+      lista.push(i)
+      map.set(lunes, lista)
+    }
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([semana, items]) => ({
+        semana,
+        items: items.sort((a, b) => (a.publish_date ?? '').localeCompare(b.publish_date ?? '')),
+      }))
+  }, [ideas.rows, frente])
+
   const celdas = useMemo(() => {
     const primero = startOfMonth(cursor)
     const dias = eachDayOfInterval({ start: primero, end: endOfMonth(cursor) })
@@ -110,11 +147,23 @@ export default function Calendario() {
   return (
     <div className="animate-rise">
       <SectionTitle
-        hint="Cuándo sale cada cosa. Arrastra la cola de la derecha a un día, o pulsa el día para colocar algo."
+        hint="Cuándo sale cada cosa. En Mes lo colocas arrastrando; en Lista lo vas tachando."
         action={
-          <Button variant="outline" onClick={() => setCursor(startOfMonth(new Date()))}>
-            Este mes
-          </Button>
+          <div className="flex items-center gap-2">
+            <Segmented
+              value={vista}
+              onChange={setVista}
+              options={[
+                { value: 'mes', label: 'Mes' },
+                { value: 'lista', label: 'Lista' },
+              ]}
+            />
+            {vista === 'mes' && (
+              <Button variant="outline" onClick={() => setCursor(startOfMonth(new Date()))}>
+                Este mes
+              </Button>
+            )}
+          </div>
         }
       >
         Calendario
@@ -156,6 +205,13 @@ export default function Calendario() {
 
       {ideas.loading ? (
         <Spinner label="Abriendo el calendario…" />
+      ) : vista === 'lista' ? (
+        <ListaPorSemanas
+          semanas={porSemana}
+          sinFecha={sinFecha}
+          onPublicar={publicar}
+          onQuitarFecha={(i) => programar(i, null)}
+        />
       ) : (
         <div className="grid gap-5 lg:grid-cols-[1fr_20rem] [&>*]:min-w-0">
           {/* --- La rejilla del mes ------------------------------------------ */}
@@ -308,6 +364,156 @@ export default function Calendario() {
           }
         }}
       />
+    </div>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+
+/**
+ * La misma información del mes, pero en columna y partida por semanas. Aquí no
+ * se coloca nada: se va tachando lo que ya has sacado.
+ */
+function ListaPorSemanas({
+  semanas,
+  sinFecha,
+  onPublicar,
+  onQuitarFecha,
+}: {
+  semanas: Array<{ semana: string; items: Idea[] }>
+  sinFecha: Idea[]
+  onPublicar: (idea: Idea, hecha: boolean) => void
+  onQuitarFecha: (idea: Idea) => void
+}) {
+  const estaSemana = weekStart(new Date())
+
+  if (semanas.length === 0) {
+    return (
+      <Card className="px-5 py-12 text-center">
+        <p className="text-sm leading-relaxed text-ink-3">
+          Todavía no has puesto fecha a nada. Cambia a la vista de Mes y arrastra una idea a un
+          día.
+        </p>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {semanas.map(({ semana, items }) => {
+        const hechas = items.filter((i) => i.status === 'hecha').length
+        const actual = semana === estaSemana
+        const pasada = semana < estaSemana
+
+        return (
+          <section key={semana}>
+            <header className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-1">
+              <h2
+                className={cx(
+                  'font-display text-lg font-bold',
+                  pasada && hechas < items.length && 'text-bad',
+                )}
+              >
+                {weekNumberLabel(semana)}
+              </h2>
+              <span className="text-[13px] text-ink-3">{weekLabel(semana)}</span>
+              {actual && <Badge tone="accent">Esta semana</Badge>}
+              {pasada && hechas < items.length && <Badge tone="bad">Se te pasó</Badge>}
+              <span className="tnum ml-auto text-[12px] font-bold text-ink-3">
+                {hechas}/{items.length}
+              </span>
+              <div className="w-20 shrink-0">
+                <ProgressBar value={items.length ? (hechas / items.length) * 100 : 0} height={5} />
+              </div>
+            </header>
+
+            <ul className="space-y-2">
+              {items.map((i) => {
+                const g = BANK_GROUPS.find((x) => x.key === i.group_key)
+                const hecha = i.status === 'hecha'
+                const dia = new Date(`${i.publish_date}T12:00:00`)
+
+                return (
+                  <Card
+                    as="li"
+                    key={i.id}
+                    className={cx(
+                      'flex items-center gap-3 p-3 transition-shadow duration-200 hover:shadow-lift',
+                      hecha && 'opacity-60',
+                    )}
+                  >
+                    <Checkbox
+                      checked={hecha}
+                      onChange={(v) => onPublicar(i, v)}
+                      color={GROUP_COLOR[i.group_key]}
+                    />
+
+                    {/* El día, para no tener que mirar la fecha entera. */}
+                    <span className="grid w-11 shrink-0 place-items-center rounded-xl bg-surface-2 py-1">
+                      <span className="text-[10px] font-bold text-ink-3 uppercase">
+                        {dayShort(i.publish_date!)}
+                      </span>
+                      <span className="tnum font-display text-[15px] leading-none font-bold">
+                        {format(dia, 'd')}
+                      </span>
+                    </span>
+
+                    <Link to={`/ideas/${i.id}`} className="min-w-0 flex-1">
+                      <span
+                        className={cx(
+                          'block truncate text-sm font-medium underline-offset-4 hover:underline',
+                          hecha && 'text-ink-3 line-through decoration-2',
+                        )}
+                      >
+                        {i.title}
+                      </span>
+                      <span className="mt-0.5 flex items-center gap-1.5 text-[12px] text-ink-3">
+                        <span aria-hidden>{g?.emoji}</span>
+                        {g?.short}
+                      </span>
+                    </Link>
+
+                    <IconButton label="Quitarle la fecha" onClick={() => onQuitarFecha(i)}>
+                      <X className="size-4" />
+                    </IconButton>
+                  </Card>
+                )
+              })}
+            </ul>
+          </section>
+        )
+      })}
+
+      {sinFecha.length > 0 && (
+        <section>
+          <header className="mb-2 flex items-center gap-3 px-1">
+            <h2 className="font-display text-lg font-bold text-ink-3">Sin fecha</h2>
+            <span className="tnum text-[12px] font-bold text-ink-3">{sinFecha.length}</span>
+          </header>
+          <ul className="space-y-2">
+            {sinFecha.map((i) => {
+              const g = BANK_GROUPS.find((x) => x.key === i.group_key)
+              return (
+                <Card as="li" key={i.id} className="flex items-center gap-3 p-3">
+                  <span
+                    aria-hidden
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: GROUP_COLOR[i.group_key] }}
+                  />
+                  <Link to={`/ideas/${i.id}`} className="min-w-0 flex-1">
+                    <span className="block truncate text-sm underline-offset-4 hover:underline">
+                      {i.title}
+                    </span>
+                    <span className="mt-0.5 block text-[12px] text-ink-3">
+                      {g?.emoji} {g?.short}
+                    </span>
+                  </Link>
+                </Card>
+              )
+            })}
+          </ul>
+        </section>
+      )}
     </div>
   )
 }
