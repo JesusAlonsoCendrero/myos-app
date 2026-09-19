@@ -190,6 +190,11 @@ export default function Ajustes() {
       <p className="mt-8 text-center text-[12px] text-ink-3">
         MyOS · tu sistema operativo personal · hecho a medida
       </p>
+      {/* El sello de version: si lo que ves no cuadra con lo ultimo que se
+          publico, es que tienes abierta una copia vieja. */}
+      <p className="tnum mt-1 text-center text-[11px] text-ink-3/70">
+        versión {__VERSION__}
+      </p>
     </div>
   )
 }

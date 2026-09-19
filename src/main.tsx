@@ -6,6 +6,9 @@ import './index.css'
 import { AuthProvider } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
 import { ConfirmProvider, ToastProvider } from '@/components/ui'
+import { mantenerAlDia } from '@/lib/pwa'
+
+mantenerAlDia()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

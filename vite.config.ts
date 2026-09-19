@@ -1,10 +1,23 @@
-﻿import { fileURLToPath, URL } from 'node:url'
+﻿import { execSync } from 'node:child_process'
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Sello de version: el commit y la fecha de compilacion. Se ve en Ajustes y
+// sirve para saber de un vistazo si la copia que tienes abierta es la ultima.
+const commit = (() => {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim()
+  } catch {
+    return 'sin-git'
+  }
+})()
+const version = `${commit} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
+
 export default defineConfig({
+  define: { __VERSION__: JSON.stringify(version) },
   plugins: [
     react(),
     tailwindcss(),
