@@ -27,6 +27,8 @@ import {
   Archive,
   CalendarDays,
   Check,
+  ChevronLeft,
+  ChevronRight,
   GripVertical,
   Link2,
   ListChecks,
@@ -62,7 +64,7 @@ import { useCollection } from '@/hooks/useCollection'
 import { useAuth } from '@/context/AuthContext'
 import { arrastrarPendientes } from '@/lib/rollover'
 import { db, friendlyError } from '@/lib/supabase'
-import { humanDate, isOverdue, localDateOf, today } from '@/lib/dates'
+import { humanDate, isOverdue, localDateOf, shiftDay, today } from '@/lib/dates'
 import {
   GOAL_GROUPS,
   PRIORITY_LABEL,
@@ -88,6 +90,9 @@ export default function Tareas() {
 
   const [view, setView] = useState<View>('hoy')
   const [detail, setDetail] = useState<Task | null>(null)
+  // El día que estás mirando en Mi día. Casi siempre hoy, pero puedes
+  // adelantarte para dejar preparado mañana.
+  const [dia, setDia] = useState(() => today())
   const [arrastrando, setArrastrando] = useState<string | null>(null)
   const [arrastradas, setArrastradas] = useState(0)
   const [quickTitle, setQuickTitle] = useState('')
@@ -125,8 +130,8 @@ export default function Tareas() {
 
   /** Proyectos que has puesto en Mi día: se ven arriba, antes de las tareas. */
   const pinnedProjects = useMemo(
-    () => projects.rows.filter((p) => p.my_day_date === today()),
-    [projects.rows],
+    () => projects.rows.filter((p) => p.my_day_date === dia),
+    [projects.rows, dia],
   )
 
   /** Mapa id → cómo pintarlo, para objetivos y proyectos a la vez. */
@@ -162,7 +167,9 @@ export default function Tareas() {
     return map
   }, [tasks.rows])
 
-  const iso = today()
+  const hoy = today()
+  const iso = dia
+  const esHoy = dia === hoy
 
   const pending = useMemo(() => {
     const base =
@@ -172,10 +179,13 @@ export default function Tareas() {
             (t) =>
               !t.is_backlog &&
               t.status !== 'done' &&
-              (t.my_day_date === iso || (t.due_date !== null && t.due_date <= iso)),
+              (t.my_day_date === iso ||
+                // Hoy arrastra todo lo vencido; en otro día, solo lo que vence
+                // ese día, que si no verías los atrasos repetidos en cada fecha.
+                (t.due_date !== null && (esHoy ? t.due_date <= iso : t.due_date === iso))),
           )
     return [...base].sort((a, b) => a.sort_order - b.sort_order)
-  }, [tasks.rows, view, iso])
+  }, [tasks.rows, view, iso, esHoy])
 
   const completed = useMemo(
     () =>
@@ -193,11 +203,12 @@ export default function Tareas() {
         (t) =>
           !t.is_backlog &&
           t.status !== 'done' &&
-          (t.my_day_date === iso || (t.due_date !== null && t.due_date <= iso)),
+          (t.my_day_date === iso ||
+            (t.due_date !== null && (esHoy ? t.due_date <= iso : t.due_date === iso))),
       ).length,
       backlog: tasks.rows.filter((t) => t.is_backlog && t.status !== 'done').length,
     }),
-    [tasks.rows, iso],
+    [tasks.rows, iso, esHoy],
   )
 
   const levantada = arrastrando ? (pending.find((t) => t.id === arrastrando) ?? null) : null
@@ -329,7 +340,11 @@ export default function Tareas() {
               value={quickTitle}
               onChange={(e) => setQuickTitle(e.target.value)}
               placeholder={
-                view === 'backlog' ? 'Una idea para más adelante…' : '¿Qué toca hacer hoy?'
+                view === 'backlog'
+                  ? 'Una idea para más adelante…'
+                  : esHoy
+                    ? '¿Qué toca hacer hoy?'
+                    : `Dejar preparado para ${humanDate(dia).toLowerCase()}…`
               }
               className="min-w-0 flex-1 bg-transparent py-2.5 text-sm placeholder:text-ink-3 focus:outline-none"
             />
@@ -396,10 +411,28 @@ export default function Tareas() {
       {tasks.error && <ErrorNote>{tasks.error}</ErrorNote>}
 
       {/* Encabezado de la sección con el pulso del día. */}
-      <div className="mb-3 flex items-end justify-between gap-4">
-        <h2 className="font-display text-2xl leading-tight font-bold">
-          {view === 'hoy' ? 'Mi día:' : 'Backlog:'}
-        </h2>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+        <div className="flex items-center gap-1">
+          <h2 className="font-display text-2xl leading-tight font-bold">
+            {view === 'backlog' ? 'Backlog:' : esHoy ? 'Mi día:' : `${humanDate(dia)}:`}
+          </h2>
+          {/* Adelantarte para dejar preparado mañana, o volver a ver lo de ayer. */}
+          {view === 'hoy' && (
+            <div className="flex items-center">
+              <IconButton label="Día anterior" onClick={() => setDia((d) => shiftDay(d, -1))}>
+                <ChevronLeft className="size-5" />
+              </IconButton>
+              <IconButton label="Día siguiente" onClick={() => setDia((d) => shiftDay(d, 1))}>
+                <ChevronRight className="size-5" />
+              </IconButton>
+              {!esHoy && (
+                <Button size="sm" variant="ghost" onClick={() => setDia(hoy)}>
+                  Volver a hoy
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
         {view === 'hoy' && completed.length + pending.length > 0 && (
           <div className="flex items-center gap-2.5">
             <div className="h-1.5 w-24 overflow-hidden rounded-full bg-surface-3">
@@ -498,6 +531,7 @@ export default function Tareas() {
                   <SortableTask
                     key={task.id}
                     task={task}
+                    dia={dia}
                     link={linkOf(task)}
                     onToggle={() => void toggleDone(task)}
                     onOpen={() => setDetail(task)}
@@ -540,6 +574,7 @@ export default function Tareas() {
                 {levantada && (
                   <TaskRow
                     task={levantada}
+                    dia={dia}
                     link={linkOf(levantada)}
                     onToggle={() => {}}
                     onOpen={() => {}}
@@ -564,6 +599,7 @@ export default function Tareas() {
                   <TaskRow
                     key={task.id}
                     task={task}
+                    dia={dia}
                     link={linkOf(task)}
                     onToggle={() => void toggleDone(task)}
                     onOpen={() => setDetail(task)}
@@ -622,6 +658,8 @@ function SortableTask(props: TaskRowProps) {
 interface TaskRowProps {
   task: Task
   link?: LinkInfo
+  /** El día que se está mirando en Mi día; por defecto, hoy. */
+  dia?: string
   onToggle: () => void
   onOpen: () => void
   /** Marcar que estás con ella ahora mismo. */
@@ -640,6 +678,7 @@ function TaskRow({
   onSun,
   onArchive,
   onDelete,
+  dia,
   ref,
   style,
   dragging,
@@ -657,7 +696,7 @@ function TaskRow({
   const done = task.status === 'done'
   const enCurso = task.status === 'doing'
   const overdue = !done && isOverdue(task.due_date)
-  const inMyDay = task.my_day_date === today()
+  const inMyDay = task.my_day_date === (dia ?? today())
 
   // Los controles no deben arrancar un arrastre, pero sí recibir su clic. Hay
   // que cortar los tres: el MouseSensor escucha mousedown (no pointerdown) y

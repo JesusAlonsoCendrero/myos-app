@@ -25,6 +25,11 @@ export function fromISODate(s: string): Date {
 
 export const today = () => toISODate(new Date())
 
+/** Mueve una fecha ISO unos cuantos días. Negativo va hacia atrás. */
+export function shiftDay(iso: string, days: number): string {
+  return toISODate(addDays(parseISO(iso), days))
+}
+
 /**
  * Día local de un `timestamptz`. Cortar la cadena a 10 caracteres daría el día
  * en UTC, y en España eso adelanta la medianoche una o dos horas: una tarea
