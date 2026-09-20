@@ -29,6 +29,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ChevronsRight,
   GripVertical,
   Link2,
   ListChecks,
@@ -284,6 +285,19 @@ export default function Tareas() {
     } catch (err) {
       toast.error(friendlyError(err))
     }
+  }
+
+  /**
+   * Manda la tarea al día siguiente del que estés mirando. Si sale en la lista
+   * por su fecha de vencimiento, hay que mover también esa fecha: si no, la
+   * tarea seguiría ahí y el botón parecería no hacer nada.
+   */
+  async function alDiaSiguiente(task: Task) {
+    const destino = shiftDay(dia, 1)
+    const valores: Partial<Task> = { is_backlog: false, my_day_date: destino }
+    if (task.due_date && task.due_date <= dia) valores.due_date = destino
+    await patch(task, valores)
+    toast.success(`“${task.title}” pasa a ${humanDate(destino).toLowerCase()}`)
   }
 
   const toggleDone = (task: Task) =>
@@ -546,6 +560,7 @@ export default function Tareas() {
                           : { my_day_date: task.my_day_date === iso ? null : iso },
                       )
                     }
+                    onManana={view === 'hoy' ? () => void alDiaSiguiente(task) : undefined}
                     onArchive={
                       view === 'hoy'
                         ? () => void patch(task, { is_backlog: true, my_day_date: null })
@@ -665,6 +680,8 @@ interface TaskRowProps {
   /** Marcar que estás con ella ahora mismo. */
   onCurso?: () => void
   onSun?: () => void
+  /** Mandarla al día siguiente. */
+  onManana?: () => void
   onArchive?: () => void
   onDelete?: () => void
 }
@@ -676,6 +693,7 @@ function TaskRow({
   onOpen,
   onCurso,
   onSun,
+  onManana,
   onArchive,
   onDelete,
   dia,
@@ -723,7 +741,9 @@ function TaskRow({
       style={style}
       {...handleProps}
       className={cx(
-        'group relative flex items-center gap-2 rounded-2xl p-3 shadow-card',
+        // flex-wrap: en el móvil no caben cinco botones junto al título, así
+        // que bajan a su propia línea en vez de estrujarlo.
+        'group relative flex flex-wrap items-center gap-2 rounded-2xl p-3 shadow-card',
         fondo,
         'transition-shadow duration-200 hover:shadow-lift',
         // touch-manipulation (y no touch-none) para que deslizar siga moviendo
@@ -797,7 +817,10 @@ function TaskRow({
         </div>
       </button>
 
-      <div className="flex shrink-0 items-center" {...sinArrastre}>
+      <div
+        className="ml-auto flex w-full shrink-0 items-center justify-end sm:w-auto"
+        {...sinArrastre}
+      >
         {onSun && (
           <IconButton
             label={
@@ -811,6 +834,11 @@ function TaskRow({
             className={inMyDay && !task.is_backlog ? 'text-joy' : ''}
           >
             <Sun className={cx('size-4', inMyDay && !task.is_backlog && 'fill-current')} />
+          </IconButton>
+        )}
+        {onManana && (
+          <IconButton label="Pasarla al día siguiente" onClick={onManana}>
+            <ChevronsRight className="size-4" />
           </IconButton>
         )}
         {onArchive && (
