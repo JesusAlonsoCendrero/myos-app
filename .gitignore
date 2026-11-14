@@ -11,3 +11,6 @@ dist-ssr
 .idea
 *.log
 dev-dist
+
+# Datos personales para rellenar facturas (nunca a GitHub)
+src/lib/privado.local.ts

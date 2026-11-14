@@ -432,3 +432,31 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Impresión de facturas y resúmenes: solo sale #print-area, en A4 sin márgenes.
+   --------------------------------------------------------------------------- */
+#print-area {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  html,
+  body {
+    background: #fff !important;
+    background-image: none !important;
+  }
+  body > *:not(#print-area) {
+    display: none !important;
+  }
+  #print-area {
+    display: block !important;
+  }
+  #print-area > * {
+    break-after: page;
+  }
+}

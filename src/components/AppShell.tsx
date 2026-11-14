@@ -11,6 +11,7 @@ import {
   Moon,
   MoreHorizontal,
   Plane,
+  Receipt,
   Settings,
   Sun,
   Target,
@@ -39,6 +40,7 @@ const NAV: NavItem[] = [
   // Gimnasio retirado del menu. El apartado sigue existiendo en /gimnasio:
   // descomenta esta linea para recuperarlo.
   // { to: '/gimnasio', label: 'Gimnasio', icon: Dumbbell },
+  { to: '/facturas', label: 'Facturas', icon: Receipt },
   { to: '/viajes', label: 'Viajes', icon: Plane },
   { to: '/kpis', label: 'KPIs', icon: ChartNoAxesCombined },
   { to: '/ajustes', label: 'Ajustes', icon: Settings },

@@ -20,6 +20,8 @@ import SprintDetalle from '@/pages/SprintDetalle'
 import Gimnasio from '@/pages/Gimnasio'
 import Viajes from '@/pages/Viajes'
 import Ajustes from '@/pages/Ajustes'
+import Facturas from '@/pages/Facturas'
+import FacturaEditor from '@/pages/FacturaEditor'
 
 // Los gráficos arrastran una librería pesada: se cargan solo al abrir KPIs.
 const Kpis = lazy(() => import('@/pages/Kpis'))
@@ -66,6 +68,9 @@ export default function App() {
             quieres volver a el escribiendo /gimnasio. */}
         <Route path="gimnasio" element={<Gimnasio />} />
         <Route path="viajes" element={<Viajes />} />
+        <Route path="facturas" element={<Facturas />} />
+        <Route path="facturas/nueva" element={<FacturaEditor />} />
+        <Route path="facturas/:id" element={<FacturaEditor />} />
         <Route
           path="kpis"
           element={

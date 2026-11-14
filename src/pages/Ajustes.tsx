@@ -14,6 +14,10 @@ const TABLES = [
   'workouts',
   'projects',
   'trips',
+  'clients',
+  'invoices',
+  'expenses',
+  'fiscal_profile',
 ] as const
 
 export default function Ajustes() {
