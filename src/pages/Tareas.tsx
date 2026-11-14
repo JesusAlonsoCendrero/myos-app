@@ -61,6 +61,7 @@ import {
   useConfirm,
   useToast,
 } from '@/components/ui'
+import Subtareas from '@/components/Subtareas'
 import { useCollection } from '@/hooks/useCollection'
 import { useAuth } from '@/context/AuthContext'
 import { arrastrarPendientes } from '@/lib/rollover'
@@ -76,6 +77,8 @@ import {
 } from '@/lib/types'
 
 type View = 'hoy' | 'backlog'
+
+const SIN_SUBTAREAS: Task['subtasks'] = []
 
 /** Cómo se ve el vínculo de una tarea con su objetivo o proyecto. */
 interface LinkInfo {
@@ -715,6 +718,8 @@ function TaskRow({
   const enCurso = task.status === 'doing'
   const overdue = !done && isOverdue(task.due_date)
   const inMyDay = task.my_day_date === (dia ?? today())
+  const subs = task.subtasks ?? []
+  const subsHechas = subs.filter((x) => x.done).length
 
   // Los controles no deben arrancar un arrastre, pero sí recibir su clic. Hay
   // que cortar los tres: el MouseSensor escucha mousedown (no pointerdown) y
@@ -797,6 +802,17 @@ function TaskRow({
             <span className="inline-flex min-w-0 items-center gap-1">
               <span aria-hidden>{link.emoji ?? '🎯'}</span>
               <span className="max-w-40 truncate">{link.label}</span>
+            </span>
+          )}
+          {subs.length > 0 && (
+            <span
+              className={cx(
+                'tnum inline-flex items-center gap-1',
+                subsHechas === subs.length && 'text-good',
+              )}
+            >
+              <ListChecks className="size-3.5" />
+              {subsHechas}/{subs.length}
             </span>
           )}
           {task.due_date && (
@@ -898,7 +914,10 @@ function TaskDrawer({
     setLink(task.goal_id ? `goal:${task.goal_id}` : task.project_id ? `project:${task.project_id}` : '')
     setDue(task.due_date ?? '')
     setPriority(String(task.priority))
-  }, [task])
+    // Solo al cambiar de tarea: los guardados al momento (subtareas, Mi día…)
+    // no deben pisar lo que estés escribiendo en el título o las notas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task?.id])
 
   if (!task) return null
 
@@ -969,6 +988,12 @@ function TaskDrawer({
             )}
           </Select>
         </Field>
+
+        {/* Un div y no Field: Field es un <label> y dentro van casillas. */}
+        <div>
+          <p className="mb-1.5 text-[12px] font-bold tracking-wide text-ink-2 uppercase">Subtareas</p>
+          <Subtareas value={task.subtasks ?? SIN_SUBTAREAS} onChange={(subtasks) => onSave({ subtasks })} />
+        </div>
 
         <Field label="Notas">
           <Textarea

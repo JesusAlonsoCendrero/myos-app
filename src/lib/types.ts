@@ -184,7 +184,15 @@ export interface Task {
   is_important: boolean
   completed_at: string | null
   sort_order: number
+  /** Subpuntos de la tarea, en orden. */
+  subtasks: Subtask[]
   created_at: string
+}
+
+export interface Subtask {
+  id: string
+  text: string
+  done: boolean
 }
 
 export const PRIORITY_LABEL: Record<number, string> = {
