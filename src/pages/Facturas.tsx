@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Download,
   FileText,
+  Paperclip,
   Plus,
   Printer,
   Receipt,
@@ -37,6 +38,7 @@ import PerfilFiscal from '@/components/PerfilFiscal'
 import { Impresion } from '@/components/FacturaHoja'
 import { useCollection } from '@/hooks/useCollection'
 import { useFiscalProfile } from '@/hooks/useFiscalProfile'
+import { FILE_META, type InvoiceFileMeta } from '@/lib/facturasPdf'
 import { friendlyError } from '@/lib/supabase'
 import { today } from '@/lib/dates'
 import {
@@ -216,6 +218,8 @@ function TabFacturas({
   const toast = useToast()
   const navegar = useNavigate()
   const [importing, setImporting] = useState(false)
+  const files = useCollection<InvoiceFileMeta>('invoice_files', { select: FILE_META })
+  const conPdf = useMemo(() => new Set(files.rows.map((f) => f.invoice_id)), [files.rows])
 
   const delAño = useMemo(() => invoices.rows.filter((i) => yearOf(i.issue_date) === year), [invoices.rows, year])
   const cuentan = delAño.filter(countable)
@@ -349,6 +353,9 @@ function TabFacturas({
                         <p className="truncate text-sm font-bold">
                           {i.client_name}
                           <span className="ml-2 font-medium text-ink-3">{i.number}</span>
+                          {conPdf.has(i.id) && (
+                            <Paperclip className="ml-1.5 inline size-3.5 text-ink-3" aria-label="Con PDF adjunto" />
+                          )}
                         </p>
                         <p className="truncate text-[12px] text-ink-3">
                           {shortEs(i.issue_date)} · {i.lines.map((l) => l.concept).join(', ')}

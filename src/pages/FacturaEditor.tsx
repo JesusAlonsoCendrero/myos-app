@@ -27,6 +27,9 @@ import {
 } from '@/components/ui'
 import FacturaHoja, { HojaEscalada, Impresion, type HojaDatos } from '@/components/FacturaHoja'
 import PerfilFiscal from '@/components/PerfilFiscal'
+import AdjuntoPdf from '@/components/AdjuntoPdf'
+import { useAuth } from '@/context/AuthContext'
+import { uploadPdf } from '@/lib/facturasPdf'
 import { useCollection } from '@/hooks/useCollection'
 import { useFiscalProfile } from '@/hooks/useFiscalProfile'
 import { friendlyError } from '@/lib/supabase'
@@ -75,6 +78,8 @@ export default function FacturaEditor() {
   const toast = useToast()
   const confirm = useConfirm()
   const esNueva = !id
+  const { user } = useAuth()
+  const [pdfPendiente, setPdfPendiente] = useState<File | null>(null)
 
   const invoices = useCollection<Invoice>('invoices', { shape: (q) => q.order('issue_date') })
   const clients = useCollection<Client>('clients', { shape: (q) => q.order('name') })
@@ -253,6 +258,14 @@ export default function FacturaEditor() {
       } else {
         saved = await invoices.insert(values)
       }
+      if (pdfPendiente) {
+        try {
+          await uploadPdf(user!.id, saved.id, pdfPendiente)
+          setPdfPendiente(null)
+        } catch (e) {
+          toast.error(`Factura guardada, pero el PDF no: ${friendlyError(e)}`)
+        }
+      }
       setForm((x) => (x ? { ...x, client_id: clientId, lines, paid_date: values.paid_date } : x))
       setDirty(false)
       if (esNueva) navegar(`/facturas/${saved.id}`, { replace: true })
@@ -351,6 +364,8 @@ export default function FacturaEditor() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
         {/* ---------------- Formulario ---------------- */}
         <div className="space-y-5">
+          <AdjuntoPdf invoiceId={actual?.id ?? null} pendiente={pdfPendiente} onPendiente={setPdfPendiente} />
+
           <Card className="grid gap-4 p-5 sm:grid-cols-2">
             <Field label="Número">
               <Input
