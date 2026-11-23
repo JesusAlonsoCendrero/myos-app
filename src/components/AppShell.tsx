@@ -191,7 +191,11 @@ export default function AppShell() {
       <main className="min-w-0 flex-1 pb-32 lg:pb-0">
         <div
           key={pathname}
-          className="animate-rise mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10"
+          className={cx(
+            'animate-rise mx-auto w-full px-4 py-6 sm:px-6 lg:px-10 lg:py-10',
+            // El calendario necesita ancho para que se lean los títulos.
+            pathname.startsWith('/calendario') ? 'max-w-[110rem]' : 'max-w-6xl',
+          )}
         >
           <Outlet />
         </div>
